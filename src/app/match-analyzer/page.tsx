@@ -134,12 +134,14 @@ export default function MatchAnalyzerPage() {
                 let avgStreak = 0, streakCount = 0;
 
                 players.forEach(player => {
-                    const mapStat = player.mapStats?.find(s =>
-                        s.map.toLowerCase() === mapName.toLowerCase() ||
-                        s.map.toLowerCase().includes(mapName.replace("de_", ""))
-                    );
+                    // Normalize map names for comparison (handle de_ prefix)
+                    const normalizedMapName = mapName.replace("de_", "").toLowerCase();
+                    const mapStat = player.mapStats?.find(s => {
+                        const statMapName = s.map.replace("de_", "").toLowerCase();
+                        return statMapName === normalizedMapName;
+                    });
 
-                    if (mapStat && mapStat.matches >= 2) {
+                    if (mapStat && mapStat.matches >= 1) {
                         totalScore += mapStat.compositeScore;
                         totalWinRate += mapStat.weightedWinRate;
                         totalKD += mapStat.avgKD;
@@ -228,7 +230,7 @@ export default function MatchAnalyzerPage() {
             const allPlayers = [...matchData.teams.faction1.players, ...matchData.teams.faction2.players];
             const playerStatsPromises = allPlayers.map(async (player: TeamPlayer) => {
                 try {
-                    const res = await fetch(`/api/map-stats/${player.player_id}?limit=25`);
+                    const res = await fetch(`/api/map-stats/${player.player_id}?limit=100`);
                     const data = await res.json();
                     return { ...player, mapStats: data.mapStats || [] };
                 } catch { return { ...player, mapStats: [] }; }
@@ -398,45 +400,69 @@ export default function MatchAnalyzerPage() {
                                                         <span className="text-sm font-mono w-6 shrink-0">{ma.enemyTeamScore.toFixed(0)}</span>
                                                     </div>
 
-                                                    {/* Confidence */}
-                                                    <span className={`text-xs shrink-0 ${ma.confidence === "high" ? "text-emerald-400" : ma.confidence === "medium" ? "text-amber-400" : "text-rose-400"}`}>
-                                                        {ma.confidence}
+                                                    {/* Data Quality - Clear Label */}
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${ma.confidence === "high" ? "bg-emerald-500/20 text-emerald-400" : ma.confidence === "medium" ? "bg-amber-500/20 text-amber-400" : "bg-rose-500/20 text-rose-400"}`}>
+                                                        {ma.confidence === "high" ? "✓ Reliable" : ma.confidence === "medium" ? "○ Medium" : "! Low data"}
                                                     </span>
                                                 </button>
 
                                                 {/* Expanded Details */}
                                                 {expandedMap === ma.map && (
-                                                    <div className="px-4 pb-3 grid grid-cols-2 gap-4 text-sm bg-secondary/20">
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
-                                                                {isUserInMatch && <Crown className="h-3 w-3 text-amber-400" />}
-                                                                {myTeamName}
-                                                            </p>
-                                                            <div className="flex flex-wrap gap-1">
-                                                                <Badge variant="outline" className="text-xs">WR {ma.myTeamWinRate.toFixed(0)}%</Badge>
-                                                                <Badge variant="outline" className="text-xs">K/D {ma.myTeamKD.toFixed(2)}</Badge>
-                                                                <Badge variant="outline" className="text-xs">{ma.myTeamPlayerCount}/5</Badge>
+                                                    <div className="px-4 pb-4 space-y-3 bg-secondary/20 border-t border-border/30">
+                                                        {/* Comparison Header */}
+                                                        <div className="grid grid-cols-3 gap-2 pt-3 text-center text-xs text-muted-foreground">
+                                                            <span className="font-medium text-emerald-400">{myTeamName}</span>
+                                                            <span>vs</span>
+                                                            <span className="font-medium text-rose-400">{enemyTeamName}</span>
+                                                        </div>
+
+                                                        {/* Stats Comparison */}
+                                                        <div className="space-y-2">
+                                                            {/* Win Rate */}
+                                                            <div className="grid grid-cols-3 gap-2 items-center text-sm">
+                                                                <span className={`text-center font-bold ${ma.myTeamWinRate > ma.enemyTeamWinRate ? "text-emerald-400" : ""}`}>{ma.myTeamWinRate.toFixed(0)}%</span>
+                                                                <span className="text-center text-xs text-muted-foreground">Win Rate</span>
+                                                                <span className={`text-center font-bold ${ma.enemyTeamWinRate > ma.myTeamWinRate ? "text-rose-400" : ""}`}>{ma.enemyTeamWinRate.toFixed(0)}%</span>
+                                                            </div>
+
+                                                            {/* K/D */}
+                                                            <div className="grid grid-cols-3 gap-2 items-center text-sm">
+                                                                <span className={`text-center font-bold ${ma.myTeamKD > ma.enemyTeamKD ? "text-emerald-400" : ""}`}>{ma.myTeamKD.toFixed(2)}</span>
+                                                                <span className="text-center text-xs text-muted-foreground">K/D Ratio</span>
+                                                                <span className={`text-center font-bold ${ma.enemyTeamKD > ma.myTeamKD ? "text-rose-400" : ""}`}>{ma.enemyTeamKD.toFixed(2)}</span>
+                                                            </div>
+
+                                                            {/* Match Count */}
+                                                            <div className="grid grid-cols-3 gap-2 items-center text-sm">
+                                                                <span className="text-center">{ma.myTeamPlayerCount}/5 players</span>
+                                                                <span className="text-center text-xs text-muted-foreground">Data</span>
+                                                                <span className="text-center">{ma.enemyTeamPlayerCount}/5 players</span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Streaks */}
+                                                        <div className="flex justify-between pt-2 border-t border-border/20">
+                                                            <div className="flex gap-1">
                                                                 {ma.myTeamStreak?.type === "win" && ma.myTeamStreak.count >= 2 && (
-                                                                    <Badge className="bg-emerald-500/20 text-emerald-400 text-xs"><Flame className="h-3 w-3 mr-0.5" />{ma.myTeamStreak.count}W</Badge>
+                                                                    <Badge className="bg-emerald-500/20 text-emerald-400 text-xs"><Flame className="h-3 w-3 mr-0.5" />{ma.myTeamStreak.count} win streak</Badge>
                                                                 )}
                                                                 {ma.myTeamStreak?.type === "loss" && ma.myTeamStreak.count >= 2 && (
-                                                                    <Badge className="bg-rose-500/20 text-rose-400 text-xs"><Snowflake className="h-3 w-3 mr-0.5" />{ma.myTeamStreak.count}L</Badge>
+                                                                    <Badge className="bg-rose-500/20 text-rose-400 text-xs"><Snowflake className="h-3 w-3 mr-0.5" />{ma.myTeamStreak.count} loss streak</Badge>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex gap-1">
+                                                                {ma.enemyTeamStreak?.type === "win" && ma.enemyTeamStreak.count >= 2 && (
+                                                                    <Badge className="bg-emerald-500/20 text-emerald-400 text-xs"><Flame className="h-3 w-3 mr-0.5" />{ma.enemyTeamStreak.count} wins</Badge>
+                                                                )}
+                                                                {ma.enemyTeamStreak?.type === "loss" && ma.enemyTeamStreak.count >= 2 && (
+                                                                    <Badge className="bg-rose-500/20 text-rose-400 text-xs"><Snowflake className="h-3 w-3 mr-0.5" />{ma.enemyTeamStreak.count} losses</Badge>
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground mb-1.5">{enemyTeamName}</p>
-                                                            <div className="flex flex-wrap gap-1">
-                                                                <Badge variant="outline" className="text-xs">WR {ma.enemyTeamWinRate.toFixed(0)}%</Badge>
-                                                                <Badge variant="outline" className="text-xs">K/D {ma.enemyTeamKD.toFixed(2)}</Badge>
-                                                                <Badge variant="outline" className="text-xs">{ma.enemyTeamPlayerCount}/5</Badge>
-                                                                {ma.enemyTeamStreak?.type === "win" && ma.enemyTeamStreak.count >= 2 && (
-                                                                    <Badge className="bg-emerald-500/20 text-emerald-400 text-xs"><Flame className="h-3 w-3 mr-0.5" />{ma.enemyTeamStreak.count}W</Badge>
-                                                                )}
-                                                                {ma.enemyTeamStreak?.type === "loss" && ma.enemyTeamStreak.count >= 2 && (
-                                                                    <Badge className="bg-rose-500/20 text-rose-400 text-xs"><Snowflake className="h-3 w-3 mr-0.5" />{ma.enemyTeamStreak.count}L</Badge>
-                                                                )}
-                                                            </div>
+
+                                                        {/* Recommendation */}
+                                                        <div className={`p-2 rounded text-center text-sm font-medium ${ma.recommendation === "PICK" ? "bg-emerald-500/10 text-emerald-400" : ma.recommendation === "BAN" ? "bg-rose-500/10 text-rose-400" : "bg-amber-500/10 text-amber-400"}`}>
+                                                            {ma.recommendation === "PICK" ? "✓ PICK this map - You have the advantage" : ma.recommendation === "BAN" ? "✗ BAN this map - Opponent favored" : "○ Risky map - Be careful"}
                                                         </div>
                                                     </div>
                                                 )}

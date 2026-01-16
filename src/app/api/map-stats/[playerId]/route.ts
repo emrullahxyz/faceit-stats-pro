@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getActiveApiKey, handleRateLimitError } from "@/lib/api-keys";
 
 const FACEIT_API_BASE = "https://open.faceit.com/data/v4";
 
@@ -49,21 +50,28 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ playerId: string }> }
 ) {
-    const FACEIT_API_KEY = process.env.FACEIT_API_KEY || "";
-
-    if (!FACEIT_API_KEY) {
+    let FACEIT_API_KEY: string;
+    try {
+        FACEIT_API_KEY = getActiveApiKey();
+    } catch {
         return NextResponse.json({ mapStats: [], error: "API key not configured" });
     }
 
     try {
         const { playerId } = await params;
         const searchParams = request.nextUrl.searchParams;
-        const matchCount = Math.min(parseInt(searchParams.get("limit") || "30", 10), 100);
+        const matchCount = Math.min(parseInt(searchParams.get("limit") || "100", 10), 100);
 
         const historyResponse = await fetch(
             `${FACEIT_API_BASE}/players/${playerId}/history?game=cs2&limit=${matchCount}`,
             { headers: { Authorization: `Bearer ${FACEIT_API_KEY}` } }
         );
+
+        // Handle rate limit with key rotation
+        if (historyResponse.status === 429) {
+            handleRateLimitError();
+            FACEIT_API_KEY = getActiveApiKey();
+        }
 
         if (!historyResponse.ok) {
             return NextResponse.json({ mapStats: [], error: "Failed to fetch match history" });
@@ -170,8 +178,8 @@ export async function GET(
             const kdValues: number[] = [];
 
             matchList.forEach((m, index) => {
-                // Tiered weighting: 1-10 = 3x, 11-20 = 1.5x, 21-30 = 1x
-                const recencyMultiplier = index < 10 ? 3.0 : (index < 20 ? 1.5 : 1.0);
+                // Tiered weighting for 100 matches: 1-20 = 3x, 21-50 = 1.5x, 51-100 = 1x
+                const recencyMultiplier = index < 20 ? 3.0 : (index < 50 ? 1.5 : 1.0);
                 const expWeight = Math.exp(-0.05 * m.daysAgo) * recencyMultiplier;
                 totalWeight += expWeight;
                 if (m.won) weightedWins += expWeight;
