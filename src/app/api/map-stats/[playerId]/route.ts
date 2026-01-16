@@ -58,7 +58,7 @@ export async function GET(
     try {
         const { playerId } = await params;
         const searchParams = request.nextUrl.searchParams;
-        const matchCount = Math.min(parseInt(searchParams.get("limit") || "25", 10), 100);
+        const matchCount = Math.min(parseInt(searchParams.get("limit") || "30", 10), 100);
 
         const historyResponse = await fetch(
             `${FACEIT_API_BASE}/players/${playerId}/history?game=cs2&limit=${matchCount}`,
@@ -170,7 +170,9 @@ export async function GET(
             const kdValues: number[] = [];
 
             matchList.forEach((m, index) => {
-                const expWeight = Math.exp(-0.05 * m.daysAgo);
+                // Tiered weighting: 1-10 = 3x, 11-20 = 1.5x, 21-30 = 1x
+                const recencyMultiplier = index < 10 ? 3.0 : (index < 20 ? 1.5 : 1.0);
+                const expWeight = Math.exp(-0.05 * m.daysAgo) * recencyMultiplier;
                 totalWeight += expWeight;
                 if (m.won) weightedWins += expWeight;
 
