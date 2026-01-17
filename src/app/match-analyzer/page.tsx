@@ -79,7 +79,7 @@ interface MapAnalysis {
     enemyTeamStreak?: { type: "win" | "loss" | "none"; count: number };
 }
 
-const CS2_MAPS = ["de_ancient", "de_anubis", "de_dust2", "de_inferno", "de_mirage", "de_nuke", "de_vertigo"];
+const CS2_MAPS = ["de_ancient", "de_anubis", "de_dust2", "de_inferno", "de_mirage", "de_nuke"];
 
 export default function MatchAnalyzerPage() {
     const searchParams = useSearchParams();
@@ -134,20 +134,18 @@ export default function MatchAnalyzerPage() {
                 let avgStreak = 0, streakCount = 0;
 
                 players.forEach(player => {
-                    // Normalize map names for comparison (handle de_ prefix)
+                    // Normalize map names for flexible comparison
                     const normalizedMapName = mapName.replace("de_", "").toLowerCase();
-                    const mapStat = player.mapStats?.find(s => {
-                        const statMapName = s.map.replace("de_", "").toLowerCase();
-                        return statMapName === normalizedMapName;
-                    });
 
-                    // Debug log for first player of each team on first map
-                    if (mapName === "de_mirage" && players.indexOf(player) === 0) {
-                        console.log(`[DEBUG] Player: ${player.nickname}, mapStats count: ${player.mapStats?.length || 0}`);
-                        console.log(`[DEBUG] Looking for: "${normalizedMapName}"`);
-                        console.log(`[DEBUG] Available maps:`, player.mapStats?.map(s => s.map) || []);
-                        console.log(`[DEBUG] Found mapStat:`, mapStat ? `${mapStat.map} (${mapStat.matches} matches)` : "NOT FOUND");
-                    }
+                    // Find matching map stat with flexible matching
+                    const mapStat = player.mapStats?.find(s => {
+                        if (!s.map) return false;
+                        const statMapName = s.map.replace("de_", "").toLowerCase();
+                        // Try exact match first, then contains match
+                        return statMapName === normalizedMapName ||
+                            statMapName.includes(normalizedMapName) ||
+                            normalizedMapName.includes(statMapName);
+                    });
 
                     if (mapStat && mapStat.matches >= 1) {
                         totalScore += mapStat.compositeScore;
@@ -236,12 +234,59 @@ export default function MatchAnalyzerPage() {
             setMatch(matchData);
 
             const allPlayers = [...matchData.teams.faction1.players, ...matchData.teams.faction2.players];
-            const playerStatsPromises = allPlayers.map(async (player: TeamPlayer) => {
+
+            // Cache helper functions
+            const CACHE_TTL = 60 * 60 * 1000; // 1 hour cache
+            const getCachedStats = (playerId: string) => {
                 try {
-                    const res = await fetch(`/api/map-stats/${player.player_id}?limit=100`);
+                    const cached = localStorage.getItem(`mapStats_${playerId}`);
+                    if (cached) {
+                        const { data, timestamp } = JSON.parse(cached);
+                        if (Date.now() - timestamp < CACHE_TTL) {
+                            return data;
+                        }
+                    }
+                } catch { /* ignore */ }
+                return null;
+            };
+            const setCachedStats = (playerId: string, data: PlayerMapStat[]) => {
+                try {
+                    localStorage.setItem(`mapStats_${playerId}`, JSON.stringify({
+                        data,
+                        timestamp: Date.now()
+                    }));
+                } catch { /* ignore */ }
+            };
+
+            const playerStatsPromises = allPlayers.map(async (player: TeamPlayer) => {
+                // Check cache first
+                const cached = getCachedStats(player.player_id);
+                if (cached) {
+                    console.log(`[Cache HIT] ${player.nickname}`);
+                    return { ...player, mapStats: cached };
+                }
+
+                try {
+                    // Use 30 matches instead of 100 to reduce API calls (30 matches × 1 history call + 30 stats calls = 31 per player)
+                    const res = await fetch(`/api/map-stats/${player.player_id}?limit=30`);
+                    if (!res.ok) {
+                        console.warn(`Failed to fetch map stats for ${player.nickname}: ${res.status}`);
+                        return { ...player, mapStats: [] };
+                    }
                     const data = await res.json();
-                    return { ...player, mapStats: data.mapStats || [] };
-                } catch { return { ...player, mapStats: [] }; }
+                    if (data.error) {
+                        console.warn(`Map stats error for ${player.nickname}: ${data.error}`);
+                        return { ...player, mapStats: [] };
+                    }
+                    const mapStats = data.mapStats || [];
+                    // Cache the result
+                    setCachedStats(player.player_id, mapStats);
+                    console.log(`[Cache SET] ${player.nickname}`);
+                    return { ...player, mapStats };
+                } catch (err) {
+                    console.warn(`Exception fetching map stats for ${player.nickname}:`, err);
+                    return { ...player, mapStats: [] };
+                }
             });
 
             const playersWithStats = await Promise.all(playerStatsPromises);
