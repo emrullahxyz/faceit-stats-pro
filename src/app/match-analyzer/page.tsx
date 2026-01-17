@@ -141,6 +141,14 @@ export default function MatchAnalyzerPage() {
                         return statMapName === normalizedMapName;
                     });
 
+                    // Debug log for first player of each team on first map
+                    if (mapName === "de_mirage" && players.indexOf(player) === 0) {
+                        console.log(`[DEBUG] Player: ${player.nickname}, mapStats count: ${player.mapStats?.length || 0}`);
+                        console.log(`[DEBUG] Looking for: "${normalizedMapName}"`);
+                        console.log(`[DEBUG] Available maps:`, player.mapStats?.map(s => s.map) || []);
+                        console.log(`[DEBUG] Found mapStat:`, mapStat ? `${mapStat.map} (${mapStat.matches} matches)` : "NOT FOUND");
+                    }
+
                     if (mapStat && mapStat.matches >= 1) {
                         totalScore += mapStat.compositeScore;
                         totalWinRate += mapStat.weightedWinRate;

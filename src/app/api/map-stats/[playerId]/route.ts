@@ -62,19 +62,26 @@ export async function GET(
         const searchParams = request.nextUrl.searchParams;
         const matchCount = Math.min(parseInt(searchParams.get("limit") || "100", 10), 100);
 
-        const historyResponse = await fetch(
+        let historyResponse = await fetch(
             `${FACEIT_API_BASE}/players/${playerId}/history?game=cs2&limit=${matchCount}`,
             { headers: { Authorization: `Bearer ${FACEIT_API_KEY}` } }
         );
 
-        // Handle rate limit with key rotation
+        // Handle rate limit with key rotation and retry
         if (historyResponse.status === 429) {
-            handleRateLimitError();
-            FACEIT_API_KEY = getActiveApiKey();
+            const switched = handleRateLimitError();
+            if (switched) {
+                FACEIT_API_KEY = getActiveApiKey();
+                // Retry with new key
+                historyResponse = await fetch(
+                    `${FACEIT_API_BASE}/players/${playerId}/history?game=cs2&limit=${matchCount}`,
+                    { headers: { Authorization: `Bearer ${FACEIT_API_KEY}` } }
+                );
+            }
         }
 
         if (!historyResponse.ok) {
-            return NextResponse.json({ mapStats: [], error: "Failed to fetch match history" });
+            return NextResponse.json({ mapStats: [], error: historyResponse.status === 429 ? "Rate limit exceeded" : "Failed to fetch match history" });
         }
 
         const historyData = await historyResponse.json();
@@ -90,10 +97,22 @@ export async function GET(
         await Promise.all(
             matches.map(async (match: MatchItem) => {
                 try {
-                    const statsResponse = await fetch(
+                    let statsResponse = await fetch(
                         `${FACEIT_API_BASE}/matches/${match.match_id}/stats`,
                         { headers: { Authorization: `Bearer ${FACEIT_API_KEY}` } }
                     );
+
+                    // Rate limit handling with retry
+                    if (statsResponse.status === 429) {
+                        const switched = handleRateLimitError();
+                        if (switched) {
+                            FACEIT_API_KEY = getActiveApiKey();
+                            statsResponse = await fetch(
+                                `${FACEIT_API_BASE}/matches/${match.match_id}/stats`,
+                                { headers: { Authorization: `Bearer ${FACEIT_API_KEY}` } }
+                            );
+                        }
+                    }
 
                     if (!statsResponse.ok) return;
 
