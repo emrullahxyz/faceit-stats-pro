@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { comparePlayersAction, findSharedMatches } from "@/app/actions";
 import type { FaceitPlayer, FaceitPlayerStats } from "@/lib/api";
+import FavoriteButton from "@/components/features/FavoriteButton";
 
 // Helper to find stat
 function findStat(lifetime: Record<string, string> | undefined, keys: string[]): string {
@@ -48,6 +49,15 @@ function PlayerCompareCard({ player, stats }: { player: FaceitPlayer; stats: Fac
                 <Link href={`/player/${player.nickname}`} className="hover:text-[#ff5500] transition-colors">
                     <h3 className="text-lg font-bold text-foreground hover:text-[#ff5500]">{player.nickname}</h3>
                 </Link>
+                <FavoriteButton
+                    player={{
+                        player_id: player.player_id,
+                        nickname: player.nickname,
+                        avatar: player.avatar,
+                        skill_level: level
+                    }}
+                    size="sm"
+                />
                 <div className="flex items-center gap-2 mt-2">
                     <div className={`h-8 w-8 rounded-full ${levelColors[level]} flex items-center justify-center text-white text-sm font-bold`}>
                         {level}

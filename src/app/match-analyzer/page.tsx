@@ -10,9 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Loader2, Gamepad2, Users, TrendingUp, TrendingDown, ExternalLink,
-    Search, User, Target, Shield, Crown, Eye, Flame, Snowflake, AlertTriangle
+    Search, User, Target, Shield, Crown, Eye, Flame, Snowflake, AlertTriangle, Share2
 } from "lucide-react";
 import Link from "next/link";
+import { MatchAnalyzerSkeleton } from "@/components/ui/skeleton";
+import ShareCard from "@/components/features/ShareCard";
 
 // Your nickname - analysis will prioritize your team's perspective
 const MY_NICKNAME = "EarlyDomDom";
@@ -77,6 +79,11 @@ interface MapAnalysis {
     confidence: "high" | "medium" | "low";
     myTeamStreak?: { type: "win" | "loss" | "none"; count: number };
     enemyTeamStreak?: { type: "win" | "loss" | "none"; count: number };
+    // Significance metrics
+    myTeamTotalMatches: number;
+    enemyTeamTotalMatches: number;
+    reliabilityScore: number; // 0-100, based on sample sizes
+    significanceLevel: "reliable" | "moderate" | "unreliable";
 }
 
 const CS2_MAPS = ["de_ancient", "de_anubis", "de_dust2", "de_inferno", "de_mirage", "de_nuke"];
@@ -104,6 +111,7 @@ export default function MatchAnalyzerPage() {
     const [mapAnalysis, setMapAnalysis] = useState<MapAnalysis[]>([]);
     const [isUserInMatch, setIsUserInMatch] = useState(false);
     const [userTeam, setUserTeam] = useState<"faction1" | "faction2" | null>(null);
+    const [showShareCard, setShowShareCard] = useState(false);
 
     const extractMatchId = (url: string): string | null => {
         const matchResult = url.match(/room\/(1-[a-f0-9-]+)/i);
@@ -130,7 +138,7 @@ export default function MatchAnalyzerPage() {
 
         const analysis: MapAnalysis[] = CS2_MAPS.map(mapName => {
             const getTeamStats = (players: TeamPlayer[]) => {
-                let totalScore = 0, totalWinRate = 0, totalKD = 0, highConf = 0, count = 0;
+                let totalScore = 0, totalWinRate = 0, totalKD = 0, highConf = 0, count = 0, totalMatches = 0;
                 let avgStreak = 0, streakCount = 0;
 
                 players.forEach(player => {
@@ -151,6 +159,7 @@ export default function MatchAnalyzerPage() {
                         totalScore += mapStat.compositeScore;
                         totalWinRate += mapStat.weightedWinRate;
                         totalKD += mapStat.avgKD;
+                        totalMatches += mapStat.matches;
                         if (mapStat.confidence === "high") highConf++;
                         if (mapStat.streakType === "win" && mapStat.currentStreak) {
                             avgStreak += mapStat.currentStreak;
@@ -168,6 +177,7 @@ export default function MatchAnalyzerPage() {
                     avgWinRate: count > 0 ? totalWinRate / count : 50,
                     avgKD: count > 0 ? totalKD / count : 1,
                     playerCount: count,
+                    totalMatches,
                     confidence: count >= 4 && highConf >= 2 ? "high" : count >= 3 ? "medium" : "low" as const,
                     avgStreak: streakCount > 0 ? avgStreak / streakCount : 0
                 };
@@ -187,6 +197,19 @@ export default function MatchAnalyzerPage() {
             const avgConf: "high" | "medium" | "low" =
                 (myStats.confidence === "high" && enemyStats.confidence === "high") ? "high" :
                     (myStats.confidence === "low" || enemyStats.confidence === "low") ? "low" : "medium";
+
+            // Calculate reliability score based on total matches (max 100)
+            const totalCombinedMatches = myStats.totalMatches + enemyStats.totalMatches;
+            const reliabilityScore = Math.min(100, Math.round(
+                (myStats.playerCount / 5 * 40) + // 40 points for my team player coverage
+                (enemyStats.playerCount / 5 * 40) + // 40 points for enemy team player coverage
+                (Math.min(totalCombinedMatches, 50) / 50 * 20) // 20 points for sample size
+            ));
+
+            // Determine significance level
+            const significanceLevel: "reliable" | "moderate" | "unreliable" =
+                reliabilityScore >= 70 ? "reliable" :
+                    reliabilityScore >= 40 ? "moderate" : "unreliable";
 
             return {
                 map: mapName.replace("de_", ""),
@@ -208,7 +231,12 @@ export default function MatchAnalyzerPage() {
                 enemyTeamStreak: {
                     type: (enemyStats.avgStreak > 0.5 ? "win" : enemyStats.avgStreak < -0.5 ? "loss" : "none") as "win" | "loss" | "none",
                     count: Math.abs(Math.round(enemyStats.avgStreak))
-                }
+                },
+                // Significance metrics
+                myTeamTotalMatches: myStats.totalMatches,
+                enemyTeamTotalMatches: enemyStats.totalMatches,
+                reliabilityScore,
+                significanceLevel
             };
         }).sort((a, b) => b.scoreDiff - a.scoreDiff);
 
@@ -258,38 +286,50 @@ export default function MatchAnalyzerPage() {
                 } catch { /* ignore */ }
             };
 
-            const playerStatsPromises = allPlayers.map(async (player: TeamPlayer) => {
+            // Sequential API calls with delay to prevent rate limiting
+            const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+            const playersWithStats: TeamPlayer[] = [];
+
+            for (let i = 0; i < allPlayers.length; i++) {
+                const player = allPlayers[i];
+
                 // Check cache first
                 const cached = getCachedStats(player.player_id);
                 if (cached) {
-                    console.log(`[Cache HIT] ${player.nickname}`);
-                    return { ...player, mapStats: cached };
+                    console.log(`[Cache HIT] ${player.nickname} (${i + 1}/${allPlayers.length})`);
+                    playersWithStats.push({ ...player, mapStats: cached });
+                    continue;
                 }
 
                 try {
-                    // Use 30 matches instead of 100 to reduce API calls (30 matches × 1 history call + 30 stats calls = 31 per player)
-                    const res = await fetch(`/api/map-stats/${player.player_id}?limit=30`);
+                    // Use 25 matches to reduce API calls
+                    console.log(`[Fetching] ${player.nickname} (${i + 1}/${allPlayers.length})...`);
+                    const res = await fetch(`/api/map-stats/${player.player_id}?limit=25`);
                     if (!res.ok) {
                         console.warn(`Failed to fetch map stats for ${player.nickname}: ${res.status}`);
-                        return { ...player, mapStats: [] };
+                        playersWithStats.push({ ...player, mapStats: [] });
+                    } else {
+                        const data = await res.json();
+                        if (data.error) {
+                            console.warn(`Map stats error for ${player.nickname}: ${data.error}`);
+                            playersWithStats.push({ ...player, mapStats: [] });
+                        } else {
+                            const mapStats = data.mapStats || [];
+                            setCachedStats(player.player_id, mapStats);
+                            console.log(`[Cache SET] ${player.nickname}`);
+                            playersWithStats.push({ ...player, mapStats });
+                        }
                     }
-                    const data = await res.json();
-                    if (data.error) {
-                        console.warn(`Map stats error for ${player.nickname}: ${data.error}`);
-                        return { ...player, mapStats: [] };
-                    }
-                    const mapStats = data.mapStats || [];
-                    // Cache the result
-                    setCachedStats(player.player_id, mapStats);
-                    console.log(`[Cache SET] ${player.nickname}`);
-                    return { ...player, mapStats };
                 } catch (err) {
                     console.warn(`Exception fetching map stats for ${player.nickname}:`, err);
-                    return { ...player, mapStats: [] };
+                    playersWithStats.push({ ...player, mapStats: [] });
                 }
-            });
 
-            const playersWithStats = await Promise.all(playerStatsPromises);
+                // Delay between requests (skip for cached results)
+                if (i < allPlayers.length - 1) {
+                    await delay(150);
+                }
+            }
 
             setTeamStats({
                 faction1: playersWithStats.filter(p => matchData.teams.faction1.players.some((fp: TeamPlayer) => fp.player_id === p.player_id)),
@@ -335,272 +375,335 @@ export default function MatchAnalyzerPage() {
     const enemyTeamName = match ? (userTeam === "faction2" ? match.teams.faction1.nickname : match.teams.faction2.nickname) : "";
 
     return (
-        <div className="container mx-auto py-6 px-4">
-            <div className="max-w-4xl mx-auto space-y-5">
-                {/* Header */}
-                <div className="text-center">
-                    <h1 className="text-2xl font-bold flex items-center justify-center gap-2">
-                        <Gamepad2 className="h-6 w-6 text-[#ff5500]" />
-                        Match Analyzer
-                    </h1>
-                    <p className="text-muted-foreground text-sm mt-1">AI-powered map recommendations</p>
-                </div>
+        <>
+            <div className="container mx-auto py-6 px-4">
+                <div className="max-w-4xl mx-auto space-y-5">
+                    {/* Header */}
+                    <div className="text-center">
+                        <h1 className="text-2xl font-bold flex items-center justify-center gap-2">
+                            <Gamepad2 className="h-6 w-6 text-[#ff5500]" />
+                            Match Analyzer
+                        </h1>
+                        <p className="text-muted-foreground text-sm mt-1">AI-powered map recommendations</p>
+                    </div>
 
-                {/* Search Tabs */}
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="match"><Gamepad2 className="h-4 w-4 mr-1.5" />Match ID</TabsTrigger>
-                        <TabsTrigger value="player"><User className="h-4 w-4 mr-1.5" />Player</TabsTrigger>
-                    </TabsList>
+                    {/* Search Tabs */}
+                    <Tabs value={activeTab} onValueChange={setActiveTab}>
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="match"><Gamepad2 className="h-4 w-4 mr-1.5" />Match ID</TabsTrigger>
+                            <TabsTrigger value="player"><User className="h-4 w-4 mr-1.5" />Player</TabsTrigger>
+                        </TabsList>
 
-                    <TabsContent value="match" className="mt-3">
-                        <div className="flex gap-2">
-                            <Input placeholder="Faceit match URL or ID..." value={matchUrl} onChange={(e) => setMatchUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && analyzeMatch()} />
-                            <Button onClick={() => analyzeMatch()} disabled={matchLoading} className="bg-[#ff5500] hover:bg-[#ff5500]/80 shrink-0">
-                                {matchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Search className="h-4 w-4 mr-1" />Analyze</>}
-                            </Button>
+                        <TabsContent value="match" className="mt-3">
+                            <div className="flex gap-2">
+                                <Input placeholder="Faceit match URL or ID..." value={matchUrl} onChange={(e) => setMatchUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && analyzeMatch()} />
+                                <Button onClick={() => analyzeMatch()} disabled={matchLoading} className="bg-[#ff5500] hover:bg-[#ff5500]/80 shrink-0">
+                                    {matchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Search className="h-4 w-4 mr-1" />Analyze</>}
+                                </Button>
+                            </div>
+                            {error && <p className="text-rose-400 text-sm mt-2">{error}</p>}
+                        </TabsContent>
+
+                        <TabsContent value="player" className="mt-3">
+                            <div className="flex gap-2">
+                                <Input placeholder="Player nickname..." value={playerNickname} onChange={(e) => setPlayerNickname(e.target.value)} onKeyDown={(e) => e.key === "Enter" && searchPlayer()} />
+                                <Button onClick={searchPlayer} disabled={playerLoading} className="bg-[#ff5500] hover:bg-[#ff5500]/80 shrink-0">
+                                    {playerLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Search className="h-4 w-4 mr-1" />Search</>}
+                                </Button>
+                            </div>
+                            {playerError && <p className="text-rose-400 text-sm mt-2">{playerError}</p>}
+
+                            {playerMatches.length > 0 && (
+                                <div className="mt-3 space-y-1.5">
+                                    {playerMatches.slice(0, 5).map((m) => (
+                                        <button key={m.match_id} onClick={() => { setActiveTab("match"); setMatchUrl(m.match_id); analyzeMatch(m.match_id); }}
+                                            className={`w-full p-2 rounded text-sm text-left flex items-center justify-between ${m.isLive ? "bg-emerald-500/20 border border-emerald-500/40" : "bg-secondary/50 hover:bg-secondary"}`}>
+                                            <span>{m.isLive ? <><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block mr-1.5" />Live Match</> : `${m.teams.faction1.nickname} vs ${m.teams.faction2.nickname}`}</span>
+                                            {m.isLive && <Badge className="bg-emerald-500 text-xs">LIVE</Badge>}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </TabsContent>
+                    </Tabs>
+
+                    {/* Loading Skeleton */}
+                    {matchLoading && (
+                        <div className="mt-6">
+                            <MatchAnalyzerSkeleton />
                         </div>
-                        {error && <p className="text-rose-400 text-sm mt-2">{error}</p>}
-                    </TabsContent>
+                    )}
 
-                    <TabsContent value="player" className="mt-3">
-                        <div className="flex gap-2">
-                            <Input placeholder="Player nickname..." value={playerNickname} onChange={(e) => setPlayerNickname(e.target.value)} onKeyDown={(e) => e.key === "Enter" && searchPlayer()} />
-                            <Button onClick={searchPlayer} disabled={playerLoading} className="bg-[#ff5500] hover:bg-[#ff5500]/80 shrink-0">
-                                {playerLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Search className="h-4 w-4 mr-1" />Search</>}
-                            </Button>
-                        </div>
-                        {playerError && <p className="text-rose-400 text-sm mt-2">{playerError}</p>}
-
-                        {playerMatches.length > 0 && (
-                            <div className="mt-3 space-y-1.5">
-                                {playerMatches.slice(0, 5).map((m) => (
-                                    <button key={m.match_id} onClick={() => { setActiveTab("match"); setMatchUrl(m.match_id); analyzeMatch(m.match_id); }}
-                                        className={`w-full p-2 rounded text-sm text-left flex items-center justify-between ${m.isLive ? "bg-emerald-500/20 border border-emerald-500/40" : "bg-secondary/50 hover:bg-secondary"}`}>
-                                        <span>{m.isLive ? <><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block mr-1.5" />Live Match</> : `${m.teams.faction1.nickname} vs ${m.teams.faction2.nickname}`}</span>
-                                        {m.isLive && <Badge className="bg-emerald-500 text-xs">LIVE</Badge>}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </TabsContent>
-                </Tabs>
-
-                {/* Results */}
-                <AnimatePresence>
-                    {match && teamStats && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            transition={{ duration: 0.4, ease: "easeOut" }}
-                            className="space-y-4"
-                        >
-                            {/* Match Info */}
-                            <div className="flex items-center justify-between p-2.5 rounded-lg bg-gradient-to-r from-[#ff5500]/10 to-transparent border border-[#ff5500]/20 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className={match.status === "ONGOING" ? "border-emerald-500 text-emerald-400" : ""}>{match.status}</Badge>
-                                    {isUserInMatch ? <><Crown className="h-4 w-4 text-amber-400" /><span className="text-amber-400">Your match</span></> : <><Eye className="h-4 w-4 text-muted-foreground" /><span className="text-muted-foreground">Spectating</span></>}
+                    {/* Results */}
+                    <AnimatePresence>
+                        {match && teamStats && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                transition={{ duration: 0.4, ease: "easeOut" }}
+                                className="space-y-4"
+                            >
+                                {/* Match Info */}
+                                <div className="flex items-center justify-between p-2.5 rounded-lg bg-gradient-to-r from-[#ff5500]/10 to-transparent border border-[#ff5500]/20 text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className={match.status === "ONGOING" ? "border-emerald-500 text-emerald-400" : ""}>{match.status}</Badge>
+                                        {isUserInMatch ? <><Crown className="h-4 w-4 text-amber-400" /><span className="text-amber-400">Your match</span></> : <><Eye className="h-4 w-4 text-muted-foreground" /><span className="text-muted-foreground">Spectating</span></>}
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <button onClick={() => setShowShareCard(true)} className="flex items-center gap-1 text-[#ff5500] hover:underline">
+                                            <Share2 className="h-3.5 w-3.5" /> Share
+                                        </button>
+                                        <a href={match.faceit_url} target="_blank" rel="noopener noreferrer" className="text-[#ff5500] hover:underline flex items-center gap-1">Faceit <ExternalLink className="h-3 w-3" /></a>
+                                    </div>
                                 </div>
-                                <a href={match.faceit_url} target="_blank" rel="noopener noreferrer" className="text-[#ff5500] hover:underline flex items-center gap-1">Faceit <ExternalLink className="h-3 w-3" /></a>
-                            </div>
 
-                            {/* Teams Header */}
-                            <div className="grid grid-cols-3 items-center text-center py-2">
-                                <div className="text-right pr-4">
-                                    <p className="font-semibold truncate">{myTeamName}</p>
-                                    <p className="text-xs text-muted-foreground">{isUserInMatch ? "Your Team" : "Team 1"}</p>
+                                {/* Teams Header */}
+                                <div className="grid grid-cols-3 items-center text-center py-2">
+                                    <div className="text-right pr-4">
+                                        <p className="font-semibold truncate">{myTeamName}</p>
+                                        <p className="text-xs text-muted-foreground">{isUserInMatch ? "Your Team" : "Team 1"}</p>
+                                    </div>
+                                    <div className="text-xl font-bold text-muted-foreground">VS</div>
+                                    <div className="text-left pl-4">
+                                        <p className="font-semibold truncate">{enemyTeamName}</p>
+                                        <p className="text-xs text-muted-foreground">{isUserInMatch ? "Opponent" : "Team 2"}</p>
+                                    </div>
                                 </div>
-                                <div className="text-xl font-bold text-muted-foreground">VS</div>
-                                <div className="text-left pl-4">
-                                    <p className="font-semibold truncate">{enemyTeamName}</p>
-                                    <p className="text-xs text-muted-foreground">{isUserInMatch ? "Opponent" : "Team 2"}</p>
-                                </div>
-                            </div>
 
-                            {/* Map Analysis */}
-                            <Card>
-                                <CardHeader className="py-3 px-4">
-                                    <CardTitle className="text-base flex items-center gap-2">
-                                        <Target className="h-4 w-4 text-[#ff5500]" />
-                                        Map Strategy
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-0">
-                                    <div className="divide-y divide-border/50">
-                                        {mapAnalysis.map((ma) => (
-                                            <div key={ma.map} className="hover:bg-secondary/30 transition-colors">
-                                                <button onClick={() => setExpandedMap(expandedMap === ma.map ? null : ma.map)} className="w-full p-3 flex items-center gap-3">
-                                                    {/* Map Name */}
-                                                    <span className="font-bold w-16 text-left shrink-0">{ma.map}</span>
-
-                                                    {/* Recommendation */}
-                                                    <Badge className={`shrink-0 text-xs ${ma.recommendation === "PICK" ? "bg-emerald-500" :
-                                                        ma.recommendation === "SAFE" ? "bg-sky-500" :
-                                                            ma.recommendation === "RISKY" ? "bg-amber-500" : "bg-rose-500"
-                                                        }`}>{ma.recommendation}</Badge>
-
-                                                    {/* Score Comparison Bar */}
-                                                    <div className="flex-1 flex items-center gap-2 min-w-0">
-                                                        <span className="text-sm font-mono w-6 text-right shrink-0">{ma.myTeamScore.toFixed(0)}</span>
-                                                        <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden relative">
-                                                            {ma.scoreDiff >= 0 ? (
-                                                                <div className="absolute left-1/2 h-full bg-emerald-500 rounded-r" style={{ width: `${Math.min(50, ma.scoreDiff * 2)}%` }} />
-                                                            ) : (
-                                                                <div className="absolute right-1/2 h-full bg-rose-500 rounded-l" style={{ width: `${Math.min(50, Math.abs(ma.scoreDiff) * 2)}%` }} />
-                                                            )}
-                                                        </div>
-                                                        <span className="text-sm font-mono w-6 shrink-0">{ma.enemyTeamScore.toFixed(0)}</span>
-                                                    </div>
-
-                                                    {/* Data Quality - Clear Label */}
-                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${ma.confidence === "high" ? "bg-emerald-500/20 text-emerald-400" : ma.confidence === "medium" ? "bg-amber-500/20 text-amber-400" : "bg-rose-500/20 text-rose-400"}`}>
-                                                        {ma.confidence === "high" ? "✓ Reliable" : ma.confidence === "medium" ? "○ Medium" : "! Low data"}
-                                                    </span>
-                                                </button>
-
-                                                {/* Expanded Details */}
-                                                {expandedMap === ma.map && (
-                                                    <div className="px-4 pb-4 space-y-3 bg-secondary/20 border-t border-border/30">
-                                                        {/* Comparison Header */}
-                                                        <div className="grid grid-cols-3 gap-2 pt-3 text-center text-xs text-muted-foreground">
-                                                            <span className="font-medium text-emerald-400">{myTeamName}</span>
-                                                            <span>vs</span>
-                                                            <span className="font-medium text-rose-400">{enemyTeamName}</span>
-                                                        </div>
-
-                                                        {/* Stats Comparison */}
-                                                        <div className="space-y-2">
-                                                            {/* Win Rate */}
-                                                            <div className="grid grid-cols-3 gap-2 items-center text-sm">
-                                                                <span className={`text-center font-bold ${ma.myTeamWinRate > ma.enemyTeamWinRate ? "text-emerald-400" : ""}`}>{ma.myTeamWinRate.toFixed(0)}%</span>
-                                                                <span className="text-center text-xs text-muted-foreground">Win Rate</span>
-                                                                <span className={`text-center font-bold ${ma.enemyTeamWinRate > ma.myTeamWinRate ? "text-rose-400" : ""}`}>{ma.enemyTeamWinRate.toFixed(0)}%</span>
-                                                            </div>
-
-                                                            {/* K/D */}
-                                                            <div className="grid grid-cols-3 gap-2 items-center text-sm">
-                                                                <span className={`text-center font-bold ${ma.myTeamKD > ma.enemyTeamKD ? "text-emerald-400" : ""}`}>{ma.myTeamKD.toFixed(2)}</span>
-                                                                <span className="text-center text-xs text-muted-foreground">K/D Ratio</span>
-                                                                <span className={`text-center font-bold ${ma.enemyTeamKD > ma.myTeamKD ? "text-rose-400" : ""}`}>{ma.enemyTeamKD.toFixed(2)}</span>
-                                                            </div>
-
-                                                            {/* Match Count */}
-                                                            <div className="grid grid-cols-3 gap-2 items-center text-sm">
-                                                                <span className="text-center">{ma.myTeamPlayerCount}/5 players</span>
-                                                                <span className="text-center text-xs text-muted-foreground">Data</span>
-                                                                <span className="text-center">{ma.enemyTeamPlayerCount}/5 players</span>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Streaks */}
-                                                        <div className="flex justify-between pt-2 border-t border-border/20">
-                                                            <div className="flex gap-1">
-                                                                {ma.myTeamStreak?.type === "win" && ma.myTeamStreak.count >= 2 && (
-                                                                    <Badge className="bg-emerald-500/20 text-emerald-400 text-xs"><Flame className="h-3 w-3 mr-0.5" />{ma.myTeamStreak.count} win streak</Badge>
-                                                                )}
-                                                                {ma.myTeamStreak?.type === "loss" && ma.myTeamStreak.count >= 2 && (
-                                                                    <Badge className="bg-rose-500/20 text-rose-400 text-xs"><Snowflake className="h-3 w-3 mr-0.5" />{ma.myTeamStreak.count} loss streak</Badge>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex gap-1">
-                                                                {ma.enemyTeamStreak?.type === "win" && ma.enemyTeamStreak.count >= 2 && (
-                                                                    <Badge className="bg-emerald-500/20 text-emerald-400 text-xs"><Flame className="h-3 w-3 mr-0.5" />{ma.enemyTeamStreak.count} wins</Badge>
-                                                                )}
-                                                                {ma.enemyTeamStreak?.type === "loss" && ma.enemyTeamStreak.count >= 2 && (
-                                                                    <Badge className="bg-rose-500/20 text-rose-400 text-xs"><Snowflake className="h-3 w-3 mr-0.5" />{ma.enemyTeamStreak.count} losses</Badge>
-                                                                )}
-                                                            </div>
-                                                        </div>
+                                {/* Map Analysis */}
+                                <Card>
+                                    <CardHeader className="py-3 px-4">
+                                        <CardTitle className="text-base flex items-center gap-2">
+                                            <Target className="h-4 w-4 text-[#ff5500]" />
+                                            Map Strategy
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="p-0">
+                                        <div className="divide-y divide-border/50">
+                                            {mapAnalysis.map((ma) => (
+                                                <div key={ma.map} className="hover:bg-secondary/30 transition-colors">
+                                                    <button onClick={() => setExpandedMap(expandedMap === ma.map ? null : ma.map)} className="w-full p-3 flex items-center gap-3">
+                                                        {/* Map Name */}
+                                                        <span className="font-bold w-16 text-left shrink-0">{ma.map}</span>
 
                                                         {/* Recommendation */}
-                                                        <div className={`p-2 rounded text-center text-sm font-medium ${ma.recommendation === "PICK" ? "bg-emerald-500/10 text-emerald-400" : ma.recommendation === "BAN" ? "bg-rose-500/10 text-rose-400" : "bg-amber-500/10 text-amber-400"}`}>
-                                                            {ma.recommendation === "PICK" ? "✓ PICK this map - You have the advantage" : ma.recommendation === "BAN" ? "✗ BAN this map - Opponent favored" : "○ Risky map - Be careful"}
+                                                        <Badge className={`shrink-0 text-xs ${ma.recommendation === "PICK" ? "bg-emerald-500" :
+                                                            ma.recommendation === "SAFE" ? "bg-sky-500" :
+                                                                ma.recommendation === "RISKY" ? "bg-amber-500" : "bg-rose-500"
+                                                            }`}>{ma.recommendation}</Badge>
+
+                                                        {/* Weak Point Indicator */}
+                                                        {ma.enemyTeamWinRate < 45 && ma.enemyTeamPlayerCount >= 3 && (
+                                                            <span className="text-red-400 shrink-0" title="Enemy weak point!">🎯</span>
+                                                        )}
+
+                                                        {/* Score Comparison Bar */}
+                                                        <div className="flex-1 flex items-center gap-2 min-w-0">
+                                                            <span className="text-sm font-mono w-6 text-right shrink-0">{ma.myTeamScore.toFixed(0)}</span>
+                                                            <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden relative">
+                                                                {ma.scoreDiff >= 0 ? (
+                                                                    <div className="absolute left-1/2 h-full bg-emerald-500 rounded-r" style={{ width: `${Math.min(50, ma.scoreDiff * 2)}%` }} />
+                                                                ) : (
+                                                                    <div className="absolute right-1/2 h-full bg-rose-500 rounded-l" style={{ width: `${Math.min(50, Math.abs(ma.scoreDiff) * 2)}%` }} />
+                                                                )}
+                                                            </div>
+                                                            <span className="text-sm font-mono w-6 shrink-0">{ma.enemyTeamScore.toFixed(0)}</span>
                                                         </div>
-                                                    </div>
-                                                )}
+
+                                                        {/* Data Quality - Clear Label */}
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${ma.confidence === "high" ? "bg-emerald-500/20 text-emerald-400" : ma.confidence === "medium" ? "bg-amber-500/20 text-amber-400" : "bg-rose-500/20 text-rose-400"}`}>
+                                                            {ma.confidence === "high" ? "✓ Reliable" : ma.confidence === "medium" ? "○ Medium" : "! Low data"}
+                                                        </span>
+                                                    </button>
+
+                                                    {/* Expanded Details */}
+                                                    {expandedMap === ma.map && (
+                                                        <div className="px-4 pb-4 space-y-3 bg-secondary/20 border-t border-border/30">
+                                                            {/* Comparison Header */}
+                                                            <div className="grid grid-cols-3 gap-2 pt-3 text-center text-xs text-muted-foreground">
+                                                                <span className="font-medium text-emerald-400">{myTeamName}</span>
+                                                                <span>vs</span>
+                                                                <span className="font-medium text-rose-400">{enemyTeamName}</span>
+                                                            </div>
+
+                                                            {/* Stats Comparison */}
+                                                            <div className="space-y-2">
+                                                                {/* Win Rate */}
+                                                                <div className="grid grid-cols-3 gap-2 items-center text-sm">
+                                                                    <span className={`text-center font-bold ${ma.myTeamWinRate > ma.enemyTeamWinRate ? "text-emerald-400" : ""}`}>{ma.myTeamWinRate.toFixed(0)}%</span>
+                                                                    <span className="text-center text-xs text-muted-foreground">Win Rate</span>
+                                                                    <span className={`text-center font-bold ${ma.enemyTeamWinRate > ma.myTeamWinRate ? "text-rose-400" : ""}`}>{ma.enemyTeamWinRate.toFixed(0)}%</span>
+                                                                </div>
+
+                                                                {/* K/D */}
+                                                                <div className="grid grid-cols-3 gap-2 items-center text-sm">
+                                                                    <span className={`text-center font-bold ${ma.myTeamKD > ma.enemyTeamKD ? "text-emerald-400" : ""}`}>{ma.myTeamKD.toFixed(2)}</span>
+                                                                    <span className="text-center text-xs text-muted-foreground">K/D Ratio</span>
+                                                                    <span className={`text-center font-bold ${ma.enemyTeamKD > ma.myTeamKD ? "text-rose-400" : ""}`}>{ma.enemyTeamKD.toFixed(2)}</span>
+                                                                </div>
+
+                                                                {/* Match Count */}
+                                                                <div className="grid grid-cols-3 gap-2 items-center text-sm">
+                                                                    <span className="text-center">{ma.myTeamPlayerCount}/5 players</span>
+                                                                    <span className="text-center text-xs text-muted-foreground">Data</span>
+                                                                    <span className="text-center">{ma.enemyTeamPlayerCount}/5 players</span>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Streaks */}
+                                                            <div className="flex justify-between pt-2 border-t border-border/20">
+                                                                <div className="flex gap-1">
+                                                                    {ma.myTeamStreak?.type === "win" && ma.myTeamStreak.count >= 2 && (
+                                                                        <Badge className="bg-emerald-500/20 text-emerald-400 text-xs"><Flame className="h-3 w-3 mr-0.5" />{ma.myTeamStreak.count} win streak</Badge>
+                                                                    )}
+                                                                    {ma.myTeamStreak?.type === "loss" && ma.myTeamStreak.count >= 2 && (
+                                                                        <Badge className="bg-rose-500/20 text-rose-400 text-xs"><Snowflake className="h-3 w-3 mr-0.5" />{ma.myTeamStreak.count} loss streak</Badge>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex gap-1">
+                                                                    {ma.enemyTeamStreak?.type === "win" && ma.enemyTeamStreak.count >= 2 && (
+                                                                        <Badge className="bg-emerald-500/20 text-emerald-400 text-xs"><Flame className="h-3 w-3 mr-0.5" />{ma.enemyTeamStreak.count} wins</Badge>
+                                                                    )}
+                                                                    {ma.enemyTeamStreak?.type === "loss" && ma.enemyTeamStreak.count >= 2 && (
+                                                                        <Badge className="bg-rose-500/20 text-rose-400 text-xs"><Snowflake className="h-3 w-3 mr-0.5" />{ma.enemyTeamStreak.count} losses</Badge>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Reliability Score & Weak Point */}
+                                                            <div className="pt-2 border-t border-border/20 space-y-2">
+                                                                {/* Reliability Score */}
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-xs text-muted-foreground">Reliability:</span>
+                                                                    <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                                                                        <div
+                                                                            className={`h-full rounded-full ${ma.significanceLevel === "reliable" ? "bg-emerald-500" : ma.significanceLevel === "moderate" ? "bg-amber-500" : "bg-rose-500"}`}
+                                                                            style={{ width: `${ma.reliabilityScore}%` }}
+                                                                        />
+                                                                    </div>
+                                                                    <span className={`text-xs font-mono ${ma.significanceLevel === "reliable" ? "text-emerald-400" : ma.significanceLevel === "moderate" ? "text-amber-400" : "text-rose-400"}`}>
+                                                                        {ma.reliabilityScore}%
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* Weak Point Indicator */}
+                                                                {ma.enemyTeamWinRate < 45 && ma.enemyTeamPlayerCount >= 3 && (
+                                                                    <div className="flex items-center gap-2 p-1.5 rounded bg-red-500/10 border border-red-500/20">
+                                                                        <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
+                                                                        <span className="text-xs text-red-400">🎯 Enemy weak point! {ma.enemyTeamWinRate.toFixed(0)}% win rate</span>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Sample Size Info */}
+                                                                <div className="flex justify-between text-[10px] text-muted-foreground">
+                                                                    <span>Sample: {ma.myTeamTotalMatches} matches</span>
+                                                                    <span>Sample: {ma.enemyTeamTotalMatches} matches</span>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Recommendation */}
+                                                            <div className={`p-2 rounded text-center text-sm font-medium ${ma.recommendation === "PICK" ? "bg-emerald-500/10 text-emerald-400" : ma.recommendation === "BAN" ? "bg-rose-500/10 text-rose-400" : "bg-amber-500/10 text-amber-400"}`}>
+                                                                {ma.recommendation === "PICK" ? "✓ PICK this map - You have the advantage" : ma.recommendation === "BAN" ? "✗ BAN this map - Opponent favored" : "○ Risky map - Be careful"}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Quick Summary */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Card className="border-emerald-500/30">
+                                        <CardContent className="p-3">
+                                            <div className="flex items-center gap-1.5 mb-2">
+                                                <TrendingUp className="h-4 w-4 text-emerald-400" />
+                                                <span className="font-medium text-sm text-emerald-400">Best Picks</span>
                                             </div>
-                                        ))}
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Quick Summary */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <Card className="border-emerald-500/30">
-                                    <CardContent className="p-3">
-                                        <div className="flex items-center gap-1.5 mb-2">
-                                            <TrendingUp className="h-4 w-4 text-emerald-400" />
-                                            <span className="font-medium text-sm text-emerald-400">Best Picks</span>
-                                        </div>
-                                        <div className="space-y-0.5 text-sm">
-                                            {mapAnalysis.filter(m => m.recommendation === "PICK").length > 0 ?
-                                                mapAnalysis.filter(m => m.recommendation === "PICK").map(m => (
-                                                    <div key={m.map} className="flex justify-between"><span>{m.map}</span><span className="text-emerald-400">+{m.scoreDiff.toFixed(0)}</span></div>
-                                                )) : <p className="text-muted-foreground text-xs">No strong picks</p>
-                                            }
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card className="border-rose-500/30">
-                                    <CardContent className="p-3">
-                                        <div className="flex items-center gap-1.5 mb-2">
-                                            <TrendingDown className="h-4 w-4 text-rose-400" />
-                                            <span className="font-medium text-sm text-rose-400">Must Ban</span>
-                                        </div>
-                                        <div className="space-y-0.5 text-sm">
-                                            {mapAnalysis.filter(m => m.recommendation === "BAN").length > 0 ?
-                                                mapAnalysis.filter(m => m.recommendation === "BAN").map(m => (
-                                                    <div key={m.map} className="flex justify-between"><span>{m.map}</span><span className="text-rose-400">{m.scoreDiff.toFixed(0)}</span></div>
-                                                )) : <p className="text-muted-foreground text-xs">No critical bans</p>
-                                            }
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-
-                            {/* Team Rosters */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <Card>
-                                    <CardHeader className="py-2 px-3">
-                                        <CardTitle className="text-sm flex items-center gap-1.5">
-                                            {isUserInMatch && <Crown className="h-3.5 w-3.5 text-amber-400" />}
-                                            <Users className="h-3.5 w-3.5" />
-                                            <span className="truncate">{myTeamName}</span>
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="px-3 pb-2 pt-0">
-                                        {(userTeam === "faction2" ? teamStats.faction2 : teamStats.faction1).map(p => (
-                                            <div key={p.player_id} className="flex items-center justify-between py-0.5 text-sm">
-                                                <Link href={`/player/${p.nickname}`} className="hover:text-[#ff5500] truncate">{p.nickname}</Link>
-                                                <Badge variant="outline" className="text-xs h-5 shrink-0 ml-2">{p.skill_level || "?"}</Badge>
+                                            <div className="space-y-0.5 text-sm">
+                                                {mapAnalysis.filter(m => m.recommendation === "PICK").length > 0 ?
+                                                    mapAnalysis.filter(m => m.recommendation === "PICK").map(m => (
+                                                        <div key={m.map} className="flex justify-between"><span>{m.map}</span><span className="text-emerald-400">+{m.scoreDiff.toFixed(0)}</span></div>
+                                                    )) : <p className="text-muted-foreground text-xs">No strong picks</p>
+                                                }
                                             </div>
-                                        ))}
-                                    </CardContent>
-                                </Card>
+                                        </CardContent>
+                                    </Card>
 
-                                <Card>
-                                    <CardHeader className="py-2 px-3">
-                                        <CardTitle className="text-sm flex items-center gap-1.5">
-                                            <Shield className="h-3.5 w-3.5 text-rose-400" />
-                                            <span className="truncate">{enemyTeamName}</span>
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="px-3 pb-2 pt-0">
-                                        {(userTeam === "faction2" ? teamStats.faction1 : teamStats.faction2).map(p => (
-                                            <div key={p.player_id} className="flex items-center justify-between py-0.5 text-sm">
-                                                <Link href={`/player/${p.nickname}`} className="hover:text-[#ff5500] truncate">{p.nickname}</Link>
-                                                <Badge variant="outline" className="text-xs h-5 shrink-0 ml-2">{p.skill_level || "?"}</Badge>
+                                    <Card className="border-rose-500/30">
+                                        <CardContent className="p-3">
+                                            <div className="flex items-center gap-1.5 mb-2">
+                                                <TrendingDown className="h-4 w-4 text-rose-400" />
+                                                <span className="font-medium text-sm text-rose-400">Must Ban</span>
                                             </div>
-                                        ))}
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                                            <div className="space-y-0.5 text-sm">
+                                                {mapAnalysis.filter(m => m.recommendation === "BAN").length > 0 ?
+                                                    mapAnalysis.filter(m => m.recommendation === "BAN").map(m => (
+                                                        <div key={m.map} className="flex justify-between"><span>{m.map}</span><span className="text-rose-400">{m.scoreDiff.toFixed(0)}</span></div>
+                                                    )) : <p className="text-muted-foreground text-xs">No critical bans</p>
+                                                }
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+
+                                {/* Team Rosters */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Card>
+                                        <CardHeader className="py-2 px-3">
+                                            <CardTitle className="text-sm flex items-center gap-1.5">
+                                                {isUserInMatch && <Crown className="h-3.5 w-3.5 text-amber-400" />}
+                                                <Users className="h-3.5 w-3.5" />
+                                                <span className="truncate">{myTeamName}</span>
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="px-3 pb-2 pt-0">
+                                            {(userTeam === "faction2" ? teamStats.faction2 : teamStats.faction1).map(p => (
+                                                <div key={p.player_id} className="flex items-center justify-between py-0.5 text-sm">
+                                                    <Link href={`/player/${p.nickname}`} className="hover:text-[#ff5500] truncate">{p.nickname}</Link>
+                                                    <Badge variant="outline" className="text-xs h-5 shrink-0 ml-2">{p.skill_level || "?"}</Badge>
+                                                </div>
+                                            ))}
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card>
+                                        <CardHeader className="py-2 px-3">
+                                            <CardTitle className="text-sm flex items-center gap-1.5">
+                                                <Shield className="h-3.5 w-3.5 text-rose-400" />
+                                                <span className="truncate">{enemyTeamName}</span>
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="px-3 pb-2 pt-0">
+                                            {(userTeam === "faction2" ? teamStats.faction1 : teamStats.faction2).map(p => (
+                                                <div key={p.player_id} className="flex items-center justify-between py-0.5 text-sm">
+                                                    <Link href={`/player/${p.nickname}`} className="hover:text-[#ff5500] truncate">{p.nickname}</Link>
+                                                    <Badge variant="outline" className="text-xs h-5 shrink-0 ml-2">{p.skill_level || "?"}</Badge>
+                                                </div>
+                                            ))}
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
             </div>
-        </div>
+
+            {/* Share Card Modal */}
+            <AnimatePresence>
+                {showShareCard && match && (
+                    <ShareCard
+                        matchId={match.match_id}
+                        myTeamName={userTeam === "faction1" ? match.teams.faction1.nickname : match.teams.faction2.nickname}
+                        enemyTeamName={userTeam === "faction1" ? match.teams.faction2.nickname : match.teams.faction1.nickname}
+                        mapAnalysis={mapAnalysis}
+                        onClose={() => setShowShareCard(false)}
+                    />
+                )}
+            </AnimatePresence>
+        </>
     );
 }
