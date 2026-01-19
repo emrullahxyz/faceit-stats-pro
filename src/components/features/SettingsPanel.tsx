@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, Trash2, Palette, Globe, X, Check, Moon, Sun } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
 
 interface SettingsPanelProps {
@@ -47,34 +46,6 @@ export default function SettingsPanel({ position = "bottom-right" }: SettingsPan
         "bottom-left": "bottom-4 left-4",
         "top-right": "top-20 right-4",
         "top-left": "top-20 left-4",
-    };
-
-    const panelVariants = {
-        hidden: {
-            opacity: 0,
-            scale: 0.8,
-            y: 20,
-            transition: { duration: 0.2 }
-        },
-        visible: {
-            opacity: 1,
-            scale: 1,
-            y: 0,
-            transition: {
-                type: "spring",
-                stiffness: 300,
-                damping: 25
-            }
-        }
-    };
-
-    const itemVariants = {
-        hidden: { opacity: 0, x: -10 },
-        visible: (i: number) => ({
-            opacity: 1,
-            x: 0,
-            transition: { delay: i * 0.05, duration: 0.2 }
-        })
     };
 
     return (
@@ -121,10 +92,9 @@ export default function SettingsPanel({ position = "bottom-right" }: SettingsPan
                         <div className="p-2 space-y-1">
                             {/* Theme Toggle */}
                             <motion.button
-                                custom={0}
-                                variants={itemVariants}
-                                initial="hidden"
-                                animate="visible"
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0, duration: 0.2 }}
                                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/50 transition-colors group"
                             >
@@ -146,10 +116,9 @@ export default function SettingsPanel({ position = "bottom-right" }: SettingsPan
 
                             {/* Language (placeholder) */}
                             <motion.button
-                                custom={1}
-                                variants={itemVariants}
-                                initial="hidden"
-                                animate="visible"
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.05, duration: 0.2 }}
                                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/50 transition-colors group opacity-50 cursor-not-allowed"
                                 disabled
                             >
@@ -164,10 +133,9 @@ export default function SettingsPanel({ position = "bottom-right" }: SettingsPan
 
                             {/* Clear Cache */}
                             <motion.button
-                                custom={2}
-                                variants={itemVariants}
-                                initial="hidden"
-                                animate="visible"
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.1, duration: 0.2 }}
                                 onClick={clearCache}
                                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 transition-colors group"
                             >

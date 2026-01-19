@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, ArrowRight, Users, ArrowLeftRight, Loader2 } from "lucide-react";
+import { Search, Users, ArrowLeftRight, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";

@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, TrendingUp, TrendingDown } from "lucide-react";
 import {
-    LineChart,
-    Line,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -26,7 +24,7 @@ interface EloDataPoint {
     elo: number;
 }
 
-export function EloChart({ playerId, playerNickname }: EloChartProps) {
+export function EloChart({ playerId, playerNickname: _playerNickname }: EloChartProps) {
     const [eloHistory, setEloHistory] = useState<EloDataPoint[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);

@@ -106,7 +106,6 @@ export default function MatchAnalyzerPage() {
     const [playerLoading, setPlayerLoading] = useState(false);
     const [playerMatches, setPlayerMatches] = useState<MatchHistoryItem[]>([]);
     const [playerError, setPlayerError] = useState<string | null>(null);
-    const [checkingLive, setCheckingLive] = useState(false);
 
     const [mapAnalysis, setMapAnalysis] = useState<MapAnalysis[]>([]);
     const [isUserInMatch, setIsUserInMatch] = useState(false);
@@ -349,26 +348,24 @@ export default function MatchAnalyzerPage() {
 
     const searchPlayer = async () => {
         if (!playerNickname.trim()) { setPlayerError("Enter a nickname"); return; }
-        setPlayerLoading(true); setPlayerError(null); setPlayerMatches([]); setCheckingLive(true); setMatch(null);
+        setPlayerLoading(true); setPlayerError(null); setPlayerMatches([]); setMatch(null);
 
         try {
             const scrapeRes = await fetch(`/api/scrape-match/${encodeURIComponent(playerNickname.trim())}`);
             const scrapeData = await scrapeRes.json();
 
             if (scrapeData.inMatch && scrapeData.matchId) {
-                setCheckingLive(false);
                 setPlayerMatches([{ match_id: scrapeData.matchId, finished_at: Date.now() / 1000, teams: { faction1: { nickname: "Live" }, faction2: { nickname: "Match" } }, isLive: true }]);
                 return;
             }
 
-            setCheckingLive(false);
             const historyRes = await fetch(`/api/player-history/${encodeURIComponent(playerNickname.trim())}`);
             if (!historyRes.ok) throw new Error("Player not found");
             const historyData = await historyRes.json();
             setPlayerMatches(historyData.matches || []);
         } catch (err) {
             setPlayerError(err instanceof Error ? err.message : "Failed to find player");
-        } finally { setPlayerLoading(false); setCheckingLive(false); }
+        } finally { setPlayerLoading(false); }
     };
 
     const myTeamName = match ? (userTeam === "faction2" ? match.teams.faction2.nickname : match.teams.faction1.nickname) : "";

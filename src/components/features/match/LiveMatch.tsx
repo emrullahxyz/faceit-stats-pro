@@ -30,7 +30,6 @@ interface TeamPlayerStats {
 
 export function LiveMatch({ playerId, playerNickname }: LiveMatchProps) {
     const [loading, setLoading] = useState(true);
-    const [scrapeLoading, setScrapeLoading] = useState(false);
     const [match, setMatch] = useState<{
         match_id: string;
         status: string;
@@ -110,55 +109,6 @@ export function LiveMatch({ playerId, playerNickname }: LiveMatchProps) {
 
         checkMatch();
     }, [playerId, playerNickname]);
-
-    // Function to manually check for live match via scraping
-    const scrapeForMatch = async () => {
-        setScrapeLoading(true);
-        try {
-            const scrapeResponse = await fetch(`/api/scrape-match/${playerNickname}`);
-            const scrapeData = await scrapeResponse.json();
-
-            if (scrapeData.inMatch && scrapeData.matchId) {
-                // Fetch full match details
-                const matchResponse = await fetch(`/api/match/${scrapeData.matchId}`);
-                if (matchResponse.ok) {
-                    const matchData = await matchResponse.json();
-                    setMatch(matchData);
-
-                    // Fetch opponent stats
-                    const isInFaction1 = matchData.teams.faction1.players.some(
-                        (p: { player_id: string }) => p.player_id === playerId
-                    );
-                    const opponentTeam = isInFaction1
-                        ? matchData.teams.faction2.players
-                        : matchData.teams.faction1.players;
-
-                    setLoadingAnalysis(true);
-                    const opponentStatsPromises = opponentTeam.map(async (p: { player_id: string; nickname: string }) => {
-                        try {
-                            const res = await fetch(`/api/map-stats/${p.player_id}`);
-                            const stats = await res.json();
-                            return {
-                                playerId: p.player_id,
-                                nickname: p.nickname,
-                                mapStats: stats.mapStats || []
-                            };
-                        } catch {
-                            return { playerId: p.player_id, nickname: p.nickname, mapStats: [] };
-                        }
-                    });
-
-                    const results = await Promise.all(opponentStatsPromises);
-                    setOpponentStats(results);
-                    setLoadingAnalysis(false);
-                }
-            }
-        } catch (error) {
-            console.error("Error scraping for match:", error);
-        } finally {
-            setScrapeLoading(false);
-        }
-    };
 
     if (loading) {
         return null; // Don't show anything while loading

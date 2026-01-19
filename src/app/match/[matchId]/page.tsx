@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
     Loader2, Gamepad2, Trophy, Target,
-    Clock, Calendar, ExternalLink, ChevronLeft, Zap, Star
+    Clock, Calendar, ExternalLink, ChevronLeft, Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 

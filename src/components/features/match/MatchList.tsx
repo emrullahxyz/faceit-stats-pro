@@ -51,6 +51,41 @@ export function MatchList({ matches, currentPlayerId, playerElo = 0, playerLevel
     const [matchStats, setMatchStats] = useState<Record<string, MatchStats>>({});
     const [loading, setLoading] = useState(true);
 
+    // Find player stats in match stats response
+    function findPlayerStats(stats: { rounds?: Array<{ round_stats?: { Map?: string }, teams?: Array<{ players?: Array<{ player_id: string, player_stats: Record<string, string> }> }> }> }, playerId: string): MatchStats {
+        const round = stats?.rounds?.[0];
+        const rawMap = round?.round_stats?.Map || "Unknown";
+        const map = formatMapName(rawMap);
+
+        for (const team of round?.teams || []) {
+            for (const player of team?.players || []) {
+                if (player.player_id === playerId) {
+                    return {
+                        kills: player.player_stats?.Kills || "0",
+                        deaths: player.player_stats?.Deaths || "0",
+                        assists: player.player_stats?.Assists || "0",
+                        kd: player.player_stats?.["K/D Ratio"] || "0.00",
+                        kr: player.player_stats?.["K/R Ratio"] || "0.00",
+                        adr: player.player_stats?.ADR || "--",
+                        hs: player.player_stats?.["Headshots %"] || "0",
+                        map,
+                    };
+                }
+            }
+        }
+
+        return {
+            kills: "--",
+            deaths: "--",
+            assists: "--",
+            kd: "--",
+            kr: "--",
+            adr: "--",
+            hs: "--",
+            map,
+        };
+    }
+
     // Fetch stats for all matches
     useEffect(() => {
         async function fetchAllMatchStats() {
@@ -95,41 +130,6 @@ export function MatchList({ matches, currentPlayerId, playerElo = 0, playerLevel
             setLoading(false);
         }
     }, [matches, currentPlayerId]);
-
-    // Find player stats in match stats response
-    function findPlayerStats(stats: { rounds?: Array<{ round_stats?: { Map?: string }, teams?: Array<{ players?: Array<{ player_id: string, player_stats: Record<string, string> }> }> }> }, playerId: string): MatchStats {
-        const round = stats?.rounds?.[0];
-        const rawMap = round?.round_stats?.Map || "Unknown";
-        const map = formatMapName(rawMap);
-
-        for (const team of round?.teams || []) {
-            for (const player of team?.players || []) {
-                if (player.player_id === playerId) {
-                    return {
-                        kills: player.player_stats?.Kills || "0",
-                        deaths: player.player_stats?.Deaths || "0",
-                        assists: player.player_stats?.Assists || "0",
-                        kd: player.player_stats?.["K/D Ratio"] || "0.00",
-                        kr: player.player_stats?.["K/R Ratio"] || "0.00",
-                        adr: player.player_stats?.ADR || "--",
-                        hs: player.player_stats?.["Headshots %"] || "0",
-                        map,
-                    };
-                }
-            }
-        }
-
-        return {
-            kills: "--",
-            deaths: "--",
-            assists: "--",
-            kd: "--",
-            kr: "--",
-            adr: "--",
-            hs: "--",
-            map,
-        };
-    }
 
     const getPlayerTeam = (match: FaceitMatch) => {
         const inFaction1 = match.teams?.faction1?.players?.some(

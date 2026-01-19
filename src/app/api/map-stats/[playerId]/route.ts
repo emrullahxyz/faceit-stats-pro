@@ -41,8 +41,8 @@ interface MatchItem {
     finished_at: number;
     results?: { winner: string };
     teams?: {
-        faction1?: { players?: { player_id: string }[] };
-        faction2?: { players?: { player_id: string }[] };
+        faction1?: { players?: { player_id: string }[]; roster?: { player_id: string }[] };
+        faction2?: { players?: { player_id: string }[]; roster?: { player_id: string }[] };
     };
 }
 
@@ -122,7 +122,10 @@ export async function GET(
 
                     if (!mapName) return;
 
+                    // Check both players and roster arrays for reliable team detection
                     const inFaction1 = match.teams?.faction1?.players?.some(
+                        (p: { player_id: string }) => p.player_id === playerId
+                    ) || match.teams?.faction1?.roster?.some(
                         (p: { player_id: string }) => p.player_id === playerId
                     );
                     const playerTeam = inFaction1 ? "faction1" : "faction2";

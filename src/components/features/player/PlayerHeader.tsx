@@ -29,7 +29,6 @@ const levelColors: Record<number, string> = {
 
 export function PlayerHeader({ player, onLiveMatchFound }: PlayerHeaderProps) {
     const [checkingLive, setCheckingLive] = useState(false);
-    const [liveMatchId, setLiveMatchId] = useState<string | null>(null);
 
     const gameData = player.games?.cs2 || player.games?.csgo;
     const level = gameData?.skill_level || 1;
@@ -42,7 +41,6 @@ export function PlayerHeader({ player, onLiveMatchFound }: PlayerHeaderProps) {
             const data = await response.json();
 
             if (data.inMatch && data.matchId) {
-                setLiveMatchId(data.matchId);
                 onLiveMatchFound?.(data.matchId);
                 // Redirect to match analyzer with the match
                 window.location.href = `/match-analyzer?matchId=${data.matchId}`;
