@@ -15,6 +15,7 @@ import {
 import Link from "next/link";
 import { MatchAnalyzerSkeleton } from "@/components/ui/skeleton";
 import ShareCard from "@/components/features/ShareCard";
+import AIPrediction from "@/components/features/AIPrediction";
 
 // Your nickname - analysis will prioritize your team's perspective
 const MY_NICKNAME = "EarlyDomDom";
@@ -111,6 +112,7 @@ export default function MatchAnalyzerPage() {
     const [isUserInMatch, setIsUserInMatch] = useState(false);
     const [userTeam, setUserTeam] = useState<"faction1" | "faction2" | null>(null);
     const [showShareCard, setShowShareCard] = useState(false);
+    const [selectedMapForPrediction, setSelectedMapForPrediction] = useState<string | null>(null);
 
     const extractMatchId = (url: string): string | null => {
         const matchResult = url.match(/room\/(1-[a-f0-9-]+)/i);
@@ -371,6 +373,102 @@ export default function MatchAnalyzerPage() {
     const myTeamName = match ? (userTeam === "faction2" ? match.teams.faction2.nickname : match.teams.faction1.nickname) : "";
     const enemyTeamName = match ? (userTeam === "faction2" ? match.teams.faction1.nickname : match.teams.faction2.nickname) : "";
 
+    // Calculate AI Prediction for selected map
+    const calculatePrediction = useCallback((mapName: string) => {
+        const mapData = mapAnalysis.find(m => m.map.toLowerCase() === mapName.toLowerCase().replace("de_", ""));
+        if (!mapData) return null;
+
+        // Calculate team scores using multiple factors
+        const myTeamScore = (
+            mapData.myTeamScore * 0.25 +
+            mapData.myTeamWinRate * 0.20 +
+            Math.min(100, mapData.myTeamKD * 50) * 0.15 +
+            (mapData.myTeamPlayerCount >= 4 ? 60 : mapData.myTeamPlayerCount >= 3 ? 50 : 40) * 0.15 + // Data quality bonus
+            (mapData.myTeamPlayerCount / 5 * 100) * 0.10 +
+            Math.min(100, mapData.myTeamScore * 0.8) * 0.10 + // Impact from composite
+            (mapData.myTeamStreak?.type === "win" ? 55 : mapData.myTeamStreak?.type === "loss" ? 45 : 50) * 0.05
+        );
+
+        const enemyTeamScore = (
+            mapData.enemyTeamScore * 0.25 +
+            mapData.enemyTeamWinRate * 0.20 +
+            Math.min(100, mapData.enemyTeamKD * 50) * 0.15 +
+            (mapData.enemyTeamPlayerCount >= 4 ? 60 : mapData.enemyTeamPlayerCount >= 3 ? 50 : 40) * 0.15 +
+            (mapData.enemyTeamPlayerCount / 5 * 100) * 0.10 +
+            Math.min(100, mapData.enemyTeamScore * 0.8) * 0.10 +
+            (mapData.enemyTeamStreak?.type === "win" ? 55 : mapData.enemyTeamStreak?.type === "loss" ? 45 : 50) * 0.05
+        );
+
+        // Calculate win probability
+        const totalScore = myTeamScore + enemyTeamScore;
+        const myWinProb = totalScore > 0 ? (myTeamScore / totalScore) * 100 : 50;
+        const enemyWinProb = 100 - myWinProb;
+
+        // Determine key factor
+        let keyFactor = "";
+        const winRateDiff = mapData.myTeamWinRate - mapData.enemyTeamWinRate;
+        const kdDiff = mapData.myTeamKD - mapData.enemyTeamKD;
+
+        if (Math.abs(winRateDiff) >= 10) {
+            keyFactor = winRateDiff > 0
+                ? `Takımınızın ${mapName.replace("de_", "")} win rate'i rakipten %${winRateDiff.toFixed(0)} daha yüksek`
+                : `Rakip takımın ${mapName.replace("de_", "")} win rate'i sizden %${Math.abs(winRateDiff).toFixed(0)} daha yüksek`;
+        } else if (Math.abs(kdDiff) >= 0.2) {
+            keyFactor = kdDiff > 0
+                ? `Takımınızın K/D oranı bu haritada daha yüksek (${mapData.myTeamKD.toFixed(2)} vs ${mapData.enemyTeamKD.toFixed(2)})`
+                : `Rakip takımın K/D oranı daha yüksek (${mapData.enemyTeamKD.toFixed(2)} vs ${mapData.myTeamKD.toFixed(2)})`;
+        } else {
+            keyFactor = "İki takım bu haritada benzer performans gösteriyor";
+        }
+
+        // Find MVP candidate (highest scoring player on my team)
+        const myTeamKey = userTeam || "faction1";
+        const myTeamPlayers = teamStats?.[myTeamKey] || [];
+        let mvpCandidate = null;
+
+        if (myTeamPlayers.length > 0) {
+            const bestPlayer = myTeamPlayers.reduce((best, player) => {
+                const playerMapStat = player.mapStats?.find(s =>
+                    s.map.toLowerCase().replace("de_", "") === mapName.toLowerCase().replace("de_", "")
+                );
+                const bestMapStat = best?.mapStats?.find(s =>
+                    s.map.toLowerCase().replace("de_", "") === mapName.toLowerCase().replace("de_", "")
+                );
+
+                const playerScore = playerMapStat?.compositeScore || 0;
+                const bestScore = bestMapStat?.compositeScore || 0;
+
+                return playerScore > bestScore ? player : best;
+            }, myTeamPlayers[0]);
+
+            const bestMapStat = bestPlayer?.mapStats?.find(s =>
+                s.map.toLowerCase().replace("de_", "") === mapName.toLowerCase().replace("de_", "")
+            );
+
+            if (bestMapStat && bestMapStat.compositeScore > 55) {
+                mvpCandidate = {
+                    name: bestPlayer.nickname,
+                    reason: `Bu haritada ${bestMapStat.compositeScore.toFixed(0)} composite skoru ve %${bestMapStat.winRate.toFixed(0)} win rate`
+                };
+            }
+        }
+
+        return {
+            myTeamWinProbability: myWinProb,
+            enemyTeamWinProbability: enemyWinProb,
+            confidence: mapData.significanceLevel === "reliable" ? "high" as const :
+                mapData.significanceLevel === "moderate" ? "medium" as const : "low" as const,
+            keyFactor,
+            mvpCandidate,
+            myTeamName,
+            enemyTeamName,
+            selectedMap: mapName.replace("de_", "")
+        };
+    }, [mapAnalysis, teamStats, userTeam, myTeamName, enemyTeamName]);
+
+    // Get current prediction
+    const currentPrediction = selectedMapForPrediction ? calculatePrediction(selectedMapForPrediction) : null;
+
     return (
         <>
             <div className="container mx-auto py-6 px-4">
@@ -603,6 +701,15 @@ export default function MatchAnalyzerPage() {
                                                             <div className={`p-2 rounded text-center text-sm font-medium ${ma.recommendation === "PICK" ? "bg-emerald-500/10 text-emerald-400" : ma.recommendation === "BAN" ? "bg-rose-500/10 text-rose-400" : "bg-amber-500/10 text-amber-400"}`}>
                                                                 {ma.recommendation === "PICK" ? "✓ PICK this map - You have the advantage" : ma.recommendation === "BAN" ? "✗ BAN this map - Opponent favored" : "○ Risky map - Be careful"}
                                                             </div>
+
+                                                            {/* AI Prediction Button */}
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setSelectedMapForPrediction(ma.map); }}
+                                                                className="w-full mt-2 p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 hover:border-purple-500/50 transition-colors flex items-center justify-center gap-2 text-sm font-medium text-purple-300 hover:text-purple-200"
+                                                            >
+                                                                <span className="text-lg">🧠</span>
+                                                                AI Maç Tahmini Göster
+                                                            </button>
                                                         </div>
                                                     )}
                                                 </div>
@@ -610,6 +717,20 @@ export default function MatchAnalyzerPage() {
                                         </div>
                                     </CardContent>
                                 </Card>
+
+                                {/* AI Prediction Card */}
+                                <AnimatePresence>
+                                    {currentPrediction && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: "auto" }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            transition={{ duration: 0.3 }}
+                                        >
+                                            <AIPrediction prediction={currentPrediction} />
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
 
                                 {/* Quick Summary */}
                                 <div className="grid grid-cols-2 gap-3">
