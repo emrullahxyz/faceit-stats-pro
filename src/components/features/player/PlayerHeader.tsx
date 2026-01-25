@@ -88,7 +88,7 @@ export function PlayerHeader({ player, onLiveMatchFound }: PlayerHeaderProps) {
                                 {player.nickname}
                             </h1>
                             <a
-                                href={player.faceit_url.replace("{lang}", "en")}
+                                href={(() => { try { return decodeURIComponent(player.faceit_url).replace(/\/{lang}/g, ""); } catch { return player.faceit_url.replace(/\/{lang}/g, ""); } })()}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-muted-foreground hover:text-[#ff5500] transition-colors"

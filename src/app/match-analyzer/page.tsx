@@ -549,7 +549,7 @@ export default function MatchAnalyzerPage() {
                                         <button onClick={() => setShowShareCard(true)} className="flex items-center gap-1 text-[#ff5500] hover:underline">
                                             <Share2 className="h-3.5 w-3.5" /> Share
                                         </button>
-                                        <a href={match.faceit_url} target="_blank" rel="noopener noreferrer" className="text-[#ff5500] hover:underline flex items-center gap-1">Faceit <ExternalLink className="h-3 w-3" /></a>
+                                        <a href={(() => { try { return decodeURIComponent(match.faceit_url).replace(/\/{lang}/g, ""); } catch { return match.faceit_url.replace(/\/{lang}/g, ""); } })()} target="_blank" rel="noopener noreferrer" className="text-[#ff5500] hover:underline flex items-center gap-1">Faceit <ExternalLink className="h-3 w-3" /></a>
                                     </div>
                                 </div>
 

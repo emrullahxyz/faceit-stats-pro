@@ -161,13 +161,33 @@ export function MatchList({ matches, currentPlayerId, playerElo = 0, playerLevel
         });
     };
 
-    const handleMatchClick = (matchId: string) => {
+    const handleMatchClick = (e: React.MouseEvent, matchId: string) => {
+        // Ctrl+Click or Cmd+Click - let browser handle it naturally
+        if (e.ctrlKey || e.metaKey) {
+            return; // Don't prevent default, let anchor handle it
+        }
+        e.preventDefault();
         router.push(`/match/${matchId}`);
     };
 
+    // No longer needed - using native anchor behavior for middle click
+
     const handleViewOnFaceit = (e: React.MouseEvent, faceitUrl: string) => {
         e.stopPropagation();
-        window.open(faceitUrl.replace("{lang}", "en"), "_blank");
+        e.preventDefault();
+        // Debug log
+        console.log('Original faceit URL:', faceitUrl);
+        // First decode the URL, then remove the {lang} path segment
+        let cleanUrl = faceitUrl;
+        try {
+            cleanUrl = decodeURIComponent(faceitUrl);
+        } catch {
+            // If decoding fails, use original URL
+        }
+        console.log('After decode:', cleanUrl);
+        cleanUrl = cleanUrl.replace(/\/{lang}/g, "");
+        console.log('After replace:', cleanUrl);
+        window.open(cleanUrl, "_blank");
     };
 
     if (!matches || matches.length === 0) {
@@ -237,10 +257,11 @@ export function MatchList({ matches, currentPlayerId, playerElo = 0, playerLevel
                         const stats = matchStats[match.match_id];
 
                         return (
-                            <div
+                            <a
                                 key={match.match_id}
-                                onClick={() => handleMatchClick(match.match_id)}
-                                className="grid grid-cols-[100px_80px_100px_100px_60px_60px_60px_100px_auto] gap-2 px-4 py-3 hover:bg-secondary/20 cursor-pointer transition-colors items-center text-sm"
+                                href={`/match/${match.match_id}`}
+                                onClick={(e) => handleMatchClick(e, match.match_id)}
+                                className="grid grid-cols-[100px_80px_100px_100px_60px_60px_60px_100px_auto] gap-2 px-4 py-3 hover:bg-secondary/20 cursor-pointer transition-colors items-center text-sm no-underline text-inherit"
                             >
                                 {/* Date */}
                                 <span className="text-muted-foreground text-xs">
@@ -309,7 +330,7 @@ export function MatchList({ matches, currentPlayerId, playerElo = 0, playerLevel
                                         <X className="h-3 w-3" />
                                     </Button>
                                 </div>
-                            </div>
+                            </a>
                         );
                     })}
                 </div>

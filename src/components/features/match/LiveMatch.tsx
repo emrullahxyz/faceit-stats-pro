@@ -171,7 +171,7 @@ export function LiveMatch({ playerId, playerNickname }: LiveMatchProps) {
                             </Button>
                         </Link>
                         <a
-                            href={match.faceit_url}
+                            href={(() => { try { return decodeURIComponent(match.faceit_url).replace(/\/{lang}/g, ""); } catch { return match.faceit_url.replace(/\/{lang}/g, ""); } })()}
                             target="_blank"
                             rel="noopener noreferrer"
                         >

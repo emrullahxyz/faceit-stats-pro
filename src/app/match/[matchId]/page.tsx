@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
@@ -60,6 +60,7 @@ interface MatchStats {
 
 export default function MatchPage() {
     const params = useParams();
+    const router = useRouter();
     const matchId = params.matchId as string;
 
     const [match, setMatch] = useState<MatchDetails | null>(null);
@@ -100,9 +101,9 @@ export default function MatchPage() {
                 <Gamepad2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h1 className="text-2xl font-bold mb-2">Match Not Found</h1>
                 <p className="text-muted-foreground mb-6">{error}</p>
-                <Link href="/match-analyzer">
-                    <Button variant="outline"><ChevronLeft className="h-4 w-4 mr-2" />Back</Button>
-                </Link>
+                <Button variant="outline" onClick={() => router.back()}>
+                    <ChevronLeft className="h-4 w-4 mr-2" />Back
+                </Button>
             </div>
         );
     }
@@ -205,10 +206,10 @@ export default function MatchPage() {
             >
                 {/* Nav */}
                 <div className="flex items-center justify-between">
-                    <Link href="/match-analyzer">
-                        <Button variant="ghost" size="sm"><ChevronLeft className="h-4 w-4 mr-1" />Back</Button>
-                    </Link>
-                    <a href={match.faceit_url} target="_blank" rel="noopener noreferrer" className="text-[#ff5500] hover:underline text-sm flex items-center gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => router.back()}>
+                        <ChevronLeft className="h-4 w-4 mr-1" />Back
+                    </Button>
+                    <a href={(() => { try { return decodeURIComponent(match.faceit_url).replace(/\/{lang}/g, ""); } catch { return match.faceit_url.replace(/\/{lang}/g, ""); } })()} target="_blank" rel="noopener noreferrer" className="text-[#ff5500] hover:underline text-sm flex items-center gap-1">
                         Faceit <ExternalLink className="h-3 w-3" />
                     </a>
                 </div>
