@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Search, Users, ArrowLeftRight, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, Users, ArrowLeftRight, Loader2, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -105,10 +106,36 @@ export default function ComparePage() {
     } | null>(null);
     const [sharedMatches, setSharedMatches] = useState<Array<{
         matchId: string;
+        faceitUrl: string;
         date: number;
         result: string;
         sameTeam: boolean;
     }>>([]);
+    const router = useRouter();
+
+    const handleMatchClick = (e: React.MouseEvent, matchId: string) => {
+        if (e.ctrlKey || e.metaKey) {
+            window.open(`/match/${matchId}`, '_blank');
+            return;
+        }
+        router.push(`/match/${matchId}`);
+    };
+
+    const handleMatchMouseDown = (e: React.MouseEvent, matchId: string) => {
+        if (e.button === 1) {
+            e.preventDefault();
+            e.stopPropagation();
+            window.open(`/match/${matchId}`, '_blank');
+        }
+    };
+
+    const cleanFaceitUrl = (url: string) => {
+        try {
+            return decodeURIComponent(url).replace(/\/{lang}/g, "");
+        } catch {
+            return url.replace(/\/{lang}/g, "");
+        }
+    };
     const [error, setError] = useState<string | null>(null);
 
     const handleCompare = (e: React.FormEvent) => {
@@ -280,9 +307,11 @@ export default function ComparePage() {
                                     {sharedMatches.map((match) => (
                                         <div
                                             key={match.matchId}
-                                            className={`flex items-center justify-between p-3 rounded-lg border ${match.result === "WIN"
-                                                ? "border-green-500/30 bg-green-500/5"
-                                                : "border-red-500/30 bg-red-500/5"
+                                            onClick={(e) => handleMatchClick(e, match.matchId)}
+                                            onMouseDown={(e) => handleMatchMouseDown(e, match.matchId)}
+                                            className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${match.result === "WIN"
+                                                ? "border-green-500/30 bg-green-500/5 hover:bg-green-500/10"
+                                                : "border-red-500/30 bg-red-500/5 hover:bg-red-500/10"
                                                 }`}
                                         >
                                             <div className="flex items-center gap-3">
@@ -293,9 +322,21 @@ export default function ComparePage() {
                                                     {formatDate(match.date)}
                                                 </span>
                                             </div>
-                                            <Badge variant={match.result === "WIN" ? "success" : "destructive"}>
-                                                {match.result}
-                                            </Badge>
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant={match.result === "WIN" ? "success" : "destructive"}>
+                                                    {match.result}
+                                                </Badge>
+                                                <a
+                                                    href={cleanFaceitUrl(match.faceitUrl)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="text-[#ff5500] hover:text-[#ff5500]/80 transition-colors"
+                                                    title="View on Faceit"
+                                                >
+                                                    <ExternalLink className="h-4 w-4" />
+                                                </a>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>

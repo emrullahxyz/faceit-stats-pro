@@ -173,6 +173,7 @@ export async function findSharedMatches(
 ): Promise<{
     sharedMatches: Array<{
         matchId: string;
+        faceitUrl: string;
         date: number;
         result: string;
         sameTeam: boolean;
@@ -217,6 +218,7 @@ export async function findSharedMatches(
         // Find shared matches
         const sharedMatches: Array<{
             matchId: string;
+            faceitUrl: string;
             date: number;
             result: string;
             sameTeam: boolean;
@@ -252,6 +254,7 @@ export async function findSharedMatches(
 
                 sharedMatches.push({
                     matchId: match.match_id,
+                    faceitUrl: match.faceit_url,
                     date: match.finished_at,
                     result: won ? "WIN" : "LOSS",
                     sameTeam,
