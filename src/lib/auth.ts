@@ -37,11 +37,31 @@ const CustomFaceitProvider = {
     clientSecret: process.env.AUTH_FACEIT_SECRET,
 };
 
+const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") ?? false;
+
 export const authOptions: NextAuthOptions = {
     providers: [CustomFaceitProvider],
     pages: {
         signIn: "/login",
     },
+    useSecureCookies,
+    cookies: {
+        sessionToken: {
+            name: `${useSecureCookies ? "__Secure-" : ""}next-auth.session-token`,
+            options: {
+                httpOnly: true,
+                sameSite: "lax",
+                path: "/",
+                secure: useSecureCookies,
+                maxAge: 30 * 24 * 60 * 60, // 30 days
+            },
+        },
+    },
+    session: {
+        strategy: "jwt",
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+    },
+    debug: true,
     callbacks: {
         async jwt({ token, account, profile }) {
             if (account && profile) {
