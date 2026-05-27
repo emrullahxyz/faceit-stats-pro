@@ -5,7 +5,7 @@ services:
     build: .
     container_name: faceit-stats-pro
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     env_file:
       - .env.local
     volumes:
