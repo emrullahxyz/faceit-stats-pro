@@ -9,6 +9,6 @@ export default defineConfig({
   },
   datasource: {
     // SQLite database in prisma folder
-    url: "file:./prisma/dev.db",
+    url: process.env.DATABASE_URL || "file:./prisma/dev.db",
   },
 });
