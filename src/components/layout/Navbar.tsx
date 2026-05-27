@@ -9,7 +9,7 @@ import Link from "next/link";
 import { AuthButtons } from "@/components/auth/AuthButtons";
 
 export function Navbar() {
-  const [searchQuery, setSearchQuery] = useState("EarlyDomDom");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
 
