@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function HomePage() {
-  const [searchQuery, setSearchQuery] = useState("EarlyDomDom");
+  const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
 
   const handleSearch = (e: React.FormEvent) => {
