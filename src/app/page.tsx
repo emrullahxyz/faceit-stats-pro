@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, TrendingUp, Users, History, Download } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Input, NicknameInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function HomePage() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("EarlyDomDom");
   const router = useRouter();
 
   const handleSearch = (e: React.FormEvent) => {
@@ -63,11 +63,13 @@ export default function HomePage() {
             <form onSubmit={handleSearch} className="mx-auto max-w-xl">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                <Input
+                <NicknameInput
                   type="text"
                   placeholder="Enter a Faceit nickname..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onClear={() => setSearchQuery("")}
+                  clearButtonClassName="right-[100px]"
                   className="h-14 pl-12 pr-32 text-lg bg-secondary/50 border-border/50 focus:bg-secondary focus:border-[#ff5500]/50"
                 />
                 <Button

@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Menu, X, Gamepad2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Input, NicknameInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { AuthButtons } from "@/components/auth/AuthButtons";
 
 export function Navbar() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("EarlyDomDom");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
 
@@ -38,11 +38,12 @@ export function Navbar() {
         <form onSubmit={handleSearch} className="hidden flex-1 max-w-md mx-8 md:flex">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <NicknameInput
               type="text"
               placeholder="Search player nickname..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onClear={() => setSearchQuery("")}
               className="w-full pl-10 bg-secondary/50 border-border/50 focus:bg-secondary"
             />
           </div>
@@ -81,11 +82,12 @@ export function Navbar() {
           <form onSubmit={handleSearch} className="mb-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+              <NicknameInput
                 type="text"
                 placeholder="Search player nickname..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery("")}
                 className="w-full pl-10 bg-secondary/50"
               />
             </div>

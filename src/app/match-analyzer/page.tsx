@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Input, NicknameInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -103,7 +103,7 @@ export default function MatchAnalyzerPage() {
         faction2: TeamPlayer[];
     } | null>(null);
 
-    const [playerNickname, setPlayerNickname] = useState("");
+    const [playerNickname, setPlayerNickname] = useState("EarlyDomDom");
     const [playerLoading, setPlayerLoading] = useState(false);
     const [playerMatches, setPlayerMatches] = useState<MatchHistoryItem[]>([]);
     const [playerError, setPlayerError] = useState<string | null>(null);
@@ -491,7 +491,7 @@ export default function MatchAnalyzerPage() {
 
                         <TabsContent value="match" className="mt-3">
                             <div className="flex gap-2">
-                                <Input placeholder="Faceit match URL or ID..." value={matchUrl} onChange={(e) => setMatchUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && analyzeMatch()} />
+                                <NicknameInput placeholder="Faceit match URL or ID..." value={matchUrl} onChange={(e) => setMatchUrl(e.target.value)} onClear={() => setMatchUrl("")} onKeyDown={(e) => e.key === "Enter" && analyzeMatch()} />
                                 <Button onClick={() => analyzeMatch()} disabled={matchLoading} className="bg-[#ff5500] hover:bg-[#ff5500]/80 shrink-0">
                                     {matchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Search className="h-4 w-4 mr-1" />Analyze</>}
                                 </Button>
@@ -501,7 +501,7 @@ export default function MatchAnalyzerPage() {
 
                         <TabsContent value="player" className="mt-3">
                             <div className="flex gap-2">
-                                <Input placeholder="Player nickname..." value={playerNickname} onChange={(e) => setPlayerNickname(e.target.value)} onKeyDown={(e) => e.key === "Enter" && searchPlayer()} />
+                                <NicknameInput placeholder="Player nickname..." value={playerNickname} onChange={(e) => setPlayerNickname(e.target.value)} onClear={() => setPlayerNickname("")} onKeyDown={(e) => e.key === "Enter" && searchPlayer()} />
                                 <Button onClick={searchPlayer} disabled={playerLoading} className="bg-[#ff5500] hover:bg-[#ff5500]/80 shrink-0">
                                     {playerLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Search className="h-4 w-4 mr-1" />Search</>}
                                 </Button>

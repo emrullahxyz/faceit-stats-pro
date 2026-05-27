@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, Users, ArrowLeftRight, Loader2, ExternalLink } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Input, NicknameInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -97,7 +97,7 @@ function PlayerCompareCard({ player, stats }: { player: FaceitPlayer; stats: Fac
 }
 
 export default function ComparePage() {
-    const [player1, setPlayer1] = useState("");
+    const [player1, setPlayer1] = useState("EarlyDomDom");
     const [player2, setPlayer2] = useState("");
     const [isPending, startTransition] = useTransition();
     const [compareResult, setCompareResult] = useState<{
@@ -203,11 +203,12 @@ export default function ComparePage() {
                                 <label className="block text-sm font-medium text-foreground mb-2">Player 1</label>
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                    <Input
+                                    <NicknameInput
                                         type="text"
                                         placeholder="Enter nickname..."
                                         value={player1}
                                         onChange={(e) => setPlayer1(e.target.value)}
+                                        onClear={() => setPlayer1("")}
                                         className="pl-10 bg-secondary/50"
                                     />
                                 </div>
@@ -223,11 +224,12 @@ export default function ComparePage() {
                                 <label className="block text-sm font-medium text-foreground mb-2">Player 2</label>
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                    <Input
+                                    <NicknameInput
                                         type="text"
                                         placeholder="Enter nickname..."
                                         value={player2}
                                         onChange={(e) => setPlayer2(e.target.value)}
+                                        onClear={() => setPlayer2("")}
                                         className="pl-10 bg-secondary/50"
                                     />
                                 </div>
