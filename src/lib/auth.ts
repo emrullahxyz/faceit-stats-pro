@@ -12,7 +12,7 @@ const CustomFaceitProvider = {
             redirect_popup: "false",
         },
     },
-    checks: ["state"] as ("pkce" | "state" | "none" | "nonce")[], // Disable PKCE which Faceit OAuth does not support and causes 400 Bad Request
+    checks: ["pkce", "state"] as ("pkce" | "state" | "none" | "nonce")[], // Enable PKCE as Faceit OAuth strictly requires it
     token: "https://api.faceit.com/auth/v1/oauth/token",
     userinfo: "https://api.faceit.com/auth/v1/resources/userinfo",
     headers: {
