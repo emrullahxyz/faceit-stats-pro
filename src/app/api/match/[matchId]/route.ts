@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isValidMatchId } from "@/lib/validation";
+import { getActiveApiKey } from "@/lib/api-keys";
 
 const FACEIT_API_BASE = "https://open.faceit.com/data/v4";
 
@@ -13,14 +15,22 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ matchId: string }> }
 ) {
-    const FACEIT_API_KEY = process.env.FACEIT_API_KEY || "";
-
-    if (!FACEIT_API_KEY) {
+    let FACEIT_API_KEY: string;
+    try {
+        FACEIT_API_KEY = getActiveApiKey();
+    } catch {
         return NextResponse.json({ error: "API key not configured" }, { status: 500 });
     }
 
     try {
         const { matchId } = await params;
+
+        if (!isValidMatchId(matchId)) {
+            return NextResponse.json(
+                { error: "Invalid match ID format" },
+                { status: 400 }
+            );
+        }
 
         const response = await fetch(
             `${FACEIT_API_BASE}/matches/${matchId}`,

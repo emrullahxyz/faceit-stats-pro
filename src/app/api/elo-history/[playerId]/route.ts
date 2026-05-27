@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isValidPlayerId } from "@/lib/validation";
+import { getActiveApiKey } from "@/lib/api-keys";
 
 const FACEIT_API_BASE = "https://open.faceit.com/data/v4";
 
@@ -6,7 +8,7 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ playerId: string }> }
 ) {
-    const FACEIT_API_KEY = process.env.FACEIT_API_KEY || "";
+    const FACEIT_API_KEY = getActiveApiKey();
 
     if (!FACEIT_API_KEY) {
         return NextResponse.json({ error: "API key not configured" }, { status: 500 });
@@ -15,11 +17,20 @@ export async function GET(
     try {
         const { playerId } = await params;
 
+        // Validate playerId format (UUID)
+        if (!isValidPlayerId(playerId)) {
+            return NextResponse.json(
+                { error: "Invalid player ID format" },
+                { status: 400 }
+            );
+        }
+
         // First get player's current ELO
         const playerResponse = await fetch(
             `${FACEIT_API_BASE}/players/${playerId}`,
             {
                 headers: { Authorization: `Bearer ${FACEIT_API_KEY}` },
+                next: { revalidate: 300 }, // Cache 5 minutes
             }
         );
 
@@ -40,6 +51,7 @@ export async function GET(
             `${FACEIT_API_BASE}/players/${playerId}/history?game=${gameId}&limit=50`,
             {
                 headers: { Authorization: `Bearer ${FACEIT_API_KEY}` },
+                next: { revalidate: 300 }, // Cache 5 minutes
             }
         );
 
@@ -55,6 +67,8 @@ export async function GET(
         }
 
         // Simulate ELO progression backwards from current ELO based on wins/losses
+        // Note: Faceit doesn't expose ELO per-match in their public API.
+        // This is an approximation based on win/loss patterns.
         const eloItems: Array<{ match_id: string; date: string; elo: number }> = [];
         let simulatedElo = currentElo;
 
@@ -71,7 +85,7 @@ export async function GET(
             const playerTeam = playerInFaction1 ? "faction1" : "faction2";
             const won = match.results?.winner === playerTeam;
 
-            // Add current ELO point  
+            // Add current ELO point
             eloItems.push({
                 match_id: match.match_id,
                 date,
@@ -91,7 +105,14 @@ export async function GET(
             simulatedElo = Math.max(100, Math.min(4000, simulatedElo));
         }
 
-        return NextResponse.json({ items: eloItems });
+        return NextResponse.json(
+            { items: eloItems },
+            {
+                headers: {
+                    "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60",
+                },
+            }
+        );
     } catch (error) {
         console.error("Failed to fetch ELO history:", error);
         return NextResponse.json({ error: "Failed to fetch ELO history" }, { status: 500 });

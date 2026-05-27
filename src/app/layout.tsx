@@ -7,6 +7,7 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import SettingsPanel from "@/components/features/SettingsPanel";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,6 +42,18 @@ export default function RootLayout({
               <main className="flex-1">{children}</main>
               <Footer />
               <SettingsPanel />
+              <Toaster
+                theme="dark"
+                position="bottom-right"
+                richColors
+                toastOptions={{
+                  style: {
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    color: "hsl(var(--foreground))",
+                  },
+                }}
+              />
             </AuthProvider>
           </QueryProvider>
         </ThemeProvider>

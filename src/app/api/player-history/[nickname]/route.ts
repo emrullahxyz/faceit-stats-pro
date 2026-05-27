@@ -1,17 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const FACEIT_API_KEY = process.env.FACEIT_API_KEY;
+import { isValidNickname } from "@/lib/validation";
+import { getActiveApiKey } from "@/lib/api-keys";
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ nickname: string }> }
 ) {
-    if (!FACEIT_API_KEY) {
+    let FACEIT_API_KEY: string;
+    try {
+        FACEIT_API_KEY = getActiveApiKey();
+    } catch {
         return NextResponse.json({ error: "API key not configured" }, { status: 500 });
     }
 
     try {
         const { nickname } = await params;
+
+        if (!isValidNickname(nickname)) {
+            return NextResponse.json(
+                { error: "Invalid nickname format" },
+                { status: 400 }
+            );
+        }
 
         // First get player ID from nickname
         const playerRes = await fetch(

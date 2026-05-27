@@ -10,8 +10,8 @@ const FaceitProvider = {
         url: "https://accounts.faceit.com/accounts",
         params: {
             client_id: process.env.AUTH_FACEIT_ID,
-            redirect_popup: "true",
             response_type: "code",
+            scope: "openid profile email",
         },
     },
     token: "https://api.faceit.com/auth/v1/oauth/token",
@@ -50,7 +50,7 @@ export const authOptions: NextAuthOptions = {
         },
         async session({ session, token }) {
             if (session.user) {
-                (session as { accessToken?: string }).accessToken = token.accessToken as string;
+                session.accessToken = token.accessToken as string;
                 (session.user as { faceitId?: string }).faceitId = token.faceitId as string;
                 (session.user as { nickname?: string }).nickname = token.nickname as string;
             }
@@ -59,6 +59,6 @@ export const authOptions: NextAuthOptions = {
     },
 };
 
+// Route handlers — only export these from the API route file, not here
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
-export const auth = handler;

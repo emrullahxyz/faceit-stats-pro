@@ -24,7 +24,7 @@ interface EloDataPoint {
     elo: number;
 }
 
-export function EloChart({ playerId, playerNickname: _playerNickname }: EloChartProps) {
+export function EloChart({ playerId, playerNickname }: EloChartProps) {
     const [eloHistory, setEloHistory] = useState<EloDataPoint[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -55,7 +55,7 @@ export function EloChart({ playerId, playerNickname: _playerNickname }: EloChart
         return (
             <Card className="border-border/50 bg-card/50">
                 <CardHeader>
-                    <CardTitle className="text-lg">ELO History</CardTitle>
+                    <CardTitle className="text-lg">{playerNickname}&apos;s ELO History</CardTitle>
                 </CardHeader>
                 <CardContent className="flex items-center justify-center py-12">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -69,7 +69,7 @@ export function EloChart({ playerId, playerNickname: _playerNickname }: EloChart
         return (
             <Card className="border-border/50 bg-card/50">
                 <CardHeader>
-                    <CardTitle className="text-lg">ELO History</CardTitle>
+                    <CardTitle className="text-lg">{playerNickname}&apos;s ELO History</CardTitle>
                 </CardHeader>
                 <CardContent className="flex items-center justify-center py-12">
                     <span className="text-muted-foreground">
@@ -101,7 +101,10 @@ export function EloChart({ playerId, playerNickname: _playerNickname }: EloChart
         <Card className="border-border/50 bg-card/50">
             <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">ELO History</CardTitle>
+                    <div>
+                        <CardTitle className="text-lg">{playerNickname}&apos;s ELO History</CardTitle>
+                        <p className="text-xs text-muted-foreground/60">Estimated progression based on win/loss history</p>
+                    </div>
                     <div className="flex items-center gap-4 text-sm">
                         <div className="flex items-center gap-1">
                             {eloChange >= 0 ? (

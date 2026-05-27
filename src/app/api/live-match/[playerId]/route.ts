@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isValidPlayerId } from "@/lib/validation";
+import { getActiveApiKey } from "@/lib/api-keys";
 
 const FACEIT_API_BASE = "https://open.faceit.com/data/v4";
 
@@ -6,14 +8,22 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ playerId: string }> }
 ) {
-    const FACEIT_API_KEY = process.env.FACEIT_API_KEY || "";
-
-    if (!FACEIT_API_KEY) {
-        return NextResponse.json({ match: null, error: "API key not configured" });
+    let FACEIT_API_KEY: string;
+    try {
+        FACEIT_API_KEY = getActiveApiKey();
+    } catch {
+        return NextResponse.json({ match: null, error: "API key not configured" }, { status: 500 });
     }
 
     try {
         const { playerId } = await params;
+
+        if (!isValidPlayerId(playerId)) {
+            return NextResponse.json(
+                { match: null, error: "Invalid player ID format" },
+                { status: 400 }
+            );
+        }
 
         // Check recent matches - sometimes the ongoing match appears as the most recent
         const historyResponse = await fetch(

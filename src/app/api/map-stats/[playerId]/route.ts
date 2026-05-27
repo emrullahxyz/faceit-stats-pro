@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveApiKey, handleRateLimitError } from "@/lib/api-keys";
+import { isValidPlayerId } from "@/lib/validation";
 
 const FACEIT_API_BASE = "https://open.faceit.com/data/v4";
 
@@ -59,6 +60,15 @@ export async function GET(
 
     try {
         const { playerId } = await params;
+
+        // Validate playerId format (UUID)
+        if (!isValidPlayerId(playerId)) {
+            return NextResponse.json(
+                { mapStats: [], error: "Invalid player ID format" },
+                { status: 400 }
+            );
+        }
+
         const searchParams = request.nextUrl.searchParams;
         const matchCount = Math.min(parseInt(searchParams.get("limit") || "100", 10), 100);
 

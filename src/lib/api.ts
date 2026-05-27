@@ -194,14 +194,18 @@ export async function getPlayerEloHistory(
         headers: { Authorization: `Bearer ${apiKey}` },
     });
 
-    // Extract ELO from match history and format as elo history
-    const items = response.data.items.map((match: { match_id: string; finished_at: number; elo?: number }) => ({
-        match_id: match.match_id,
-        date: new Date(match.finished_at * 1000).toISOString().split('T')[0],
-        elo: match.elo || 0,
-    })).filter((item: { elo: number }) => item.elo > 0);
+    // Note: Faceit's /players/{id}/history endpoint does NOT return elo field.
+    // The elo field is only available through the internal/unofficial API.
+    // We extract what we can and filter out zero-elo entries.
+    const items = response.data.items
+        .map((match: { match_id: string; finished_at: number; elo?: number }) => ({
+            match_id: match.match_id,
+            date: new Date(match.finished_at * 1000).toISOString().split('T')[0],
+            elo: match.elo ?? 0,
+        }))
+        .filter((item: { elo: number }) => item.elo > 0);
 
-    return { items: items.reverse() }; // Reverse to show oldest first
+    return { items: items.reverse() }; // Reverse to show oldest first (chronological)
 }
 
 export async function getPlayerMatchHistory(
@@ -341,12 +345,6 @@ export async function getPlayerMapStats(playerId: string, apiKey: string, limit:
         });
 
         const matches = response.data?.items || [];
-        console.log("Match history count:", matches.length);
-        if (matches.length > 0) {
-            console.log("First match keys:", Object.keys(matches[0]));
-            console.log("First match voting:", matches[0].voting);
-            console.log("First match competition_name:", matches[0].competition_name);
-        }
 
         const mapData: Record<string, { wins: number; total: number; kills: number; deaths: number }> = {};
 
@@ -387,8 +385,6 @@ export async function getPlayerMapStats(playerId: string, apiKey: string, limit:
             mapData[mapName].total++;
             if (won) mapData[mapName].wins++;
         }
-
-        console.log("Map data collected:", mapData);
 
         // Convert to array and calculate stats
         const mapStats: PlayerMapStats[] = Object.entries(mapData).map(([map, data]) => ({

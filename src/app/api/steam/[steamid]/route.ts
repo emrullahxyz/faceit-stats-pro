@@ -21,6 +21,15 @@ export async function GET(
     try {
         const { steamid } = await params;
 
+        // SteamID64 format validation (17 digits, starting with 7656119)
+        const steamIdRegex = /^7656119\d{10}$/;
+        if (!steamid || !steamIdRegex.test(steamid)) {
+            return NextResponse.json({
+                error: "Invalid SteamID format",
+                steamData: null
+            }, { status: 400 });
+        }
+
         // Fetch player summary
         const summaryResponse = await fetch(
             `${STEAM_API_BASE}/ISteamUser/GetPlayerSummaries/v2/?key=${STEAM_API_KEY}&steamids=${steamid}`

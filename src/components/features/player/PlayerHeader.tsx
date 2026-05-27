@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, MapPin, Gamepad2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import type { FaceitPlayer } from "@/lib/api";
 
 interface PlayerHeaderProps {
@@ -45,11 +46,15 @@ export function PlayerHeader({ player, onLiveMatchFound }: PlayerHeaderProps) {
                 // Redirect to match analyzer with the match
                 window.location.href = `/match-analyzer?matchId=${data.matchId}`;
             } else {
-                // No live match - could show a toast here
-                alert("Player is not currently in a match");
+                toast.info("Not in a match", {
+                    description: `${player.nickname} is not currently playing a match.`,
+                });
             }
         } catch (error) {
             console.error("Error checking live match:", error);
+            toast.error("Failed to check live match", {
+                description: "Please try again later.",
+            });
         } finally {
             setCheckingLive(false);
         }

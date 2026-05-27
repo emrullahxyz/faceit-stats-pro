@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isValidNickname } from "@/lib/validation";
 import puppeteer from "puppeteer";
 
 export async function GET(
@@ -9,6 +10,13 @@ export async function GET(
 
     try {
         const { nickname } = await params;
+
+        if (!isValidNickname(nickname)) {
+            return NextResponse.json(
+                { inMatch: false, error: "Invalid nickname format" },
+                { status: 400 }
+            );
+        }
         const faceitUrl = `https://www.faceit.com/en/players/${nickname}`;
 
         console.log(`[Scrape] Starting browser for ${nickname}...`);

@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { X, Loader2, ExternalLink } from "lucide-react";
+import { Loader2, ExternalLink } from "lucide-react";
 import type { FaceitMatch } from "@/lib/api";
 
 // Helper to format map name (remove de_ prefix)
@@ -49,10 +49,10 @@ const levelColors: Record<number, string> = {
 export function MatchList({ matches, currentPlayerId, playerElo = 0, playerLevel = 1, playerNickname = "" }: MatchListProps) {
     const router = useRouter();
     const [matchStats, setMatchStats] = useState<Record<string, MatchStats>>({});
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => matches.length > 0);
 
     // Find player stats in match stats response
-    function findPlayerStats(stats: { rounds?: Array<{ round_stats?: { Map?: string }, teams?: Array<{ players?: Array<{ player_id: string, player_stats: Record<string, string> }> }> }> }, playerId: string): MatchStats {
+    const findPlayerStats = useCallback(function(stats: { rounds?: Array<{ round_stats?: { Map?: string }, teams?: Array<{ players?: Array<{ player_id: string, player_stats: Record<string, string> }> }> }> }, playerId: string): MatchStats {
         const round = stats?.rounds?.[0];
         const rawMap = round?.round_stats?.Map || "Unknown";
         const map = formatMapName(rawMap);
@@ -84,7 +84,7 @@ export function MatchList({ matches, currentPlayerId, playerElo = 0, playerLevel
             hs: "--",
             map,
         };
-    }
+    }, []);
 
     // Fetch stats for all matches
     useEffect(() => {
@@ -126,10 +126,8 @@ export function MatchList({ matches, currentPlayerId, playerElo = 0, playerLevel
 
         if (matches.length > 0) {
             fetchAllMatchStats();
-        } else {
-            setLoading(false);
         }
-    }, [matches, currentPlayerId]);
+    }, [matches, currentPlayerId, findPlayerStats]);
 
     const getPlayerTeam = (match: FaceitMatch) => {
         const inFaction1 = match.teams?.faction1?.players?.some(
@@ -175,18 +173,13 @@ export function MatchList({ matches, currentPlayerId, playerElo = 0, playerLevel
     const handleViewOnFaceit = (e: React.MouseEvent, faceitUrl: string) => {
         e.stopPropagation();
         e.preventDefault();
-        // Debug log
-        console.log('Original faceit URL:', faceitUrl);
-        // First decode the URL, then remove the {lang} path segment
         let cleanUrl = faceitUrl;
         try {
             cleanUrl = decodeURIComponent(faceitUrl);
         } catch {
             // If decoding fails, use original URL
         }
-        console.log('After decode:', cleanUrl);
         cleanUrl = cleanUrl.replace(/\/{lang}/g, "");
-        console.log('After replace:', cleanUrl);
         window.open(cleanUrl, "_blank");
     };
 
@@ -324,10 +317,11 @@ export function MatchList({ matches, currentPlayerId, playerElo = 0, playerLevel
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                        className="h-6 w-6 text-muted-foreground hover:text-[#ff5500]"
                                         onClick={(e) => handleViewOnFaceit(e, match.faceit_url)}
+                                        title="View on Faceit"
                                     >
-                                        <X className="h-3 w-3" />
+                                        <ExternalLink className="h-3 w-3" />
                                     </Button>
                                 </div>
                             </a>

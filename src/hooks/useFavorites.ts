@@ -18,15 +18,19 @@ export function useFavorites() {
 
     // Load favorites from localStorage on mount
     useEffect(() => {
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                setFavorites(JSON.parse(stored));
+        const handle = requestAnimationFrame(() => {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                if (stored) {
+                    setFavorites(JSON.parse(stored));
+                }
+            } catch {
+                console.warn("Failed to load favorites");
+            } finally {
+                setIsLoaded(true);
             }
-        } catch {
-            console.warn("Failed to load favorites");
-        }
-        setIsLoaded(true);
+        });
+        return () => cancelAnimationFrame(handle);
     }, []);
 
     // Save favorites to localStorage whenever they change
