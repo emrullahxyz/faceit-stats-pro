@@ -9,7 +9,6 @@ const CustomFaceitProvider = {
         url: "https://accounts.faceit.com/accounts",
         params: {
             scope: "openid profile email",
-            redirect_popup: "false",
         },
     },
     checks: ["pkce", "state"] as ("pkce" | "state" | "none" | "nonce")[], // Enable PKCE as Faceit OAuth strictly requires it
