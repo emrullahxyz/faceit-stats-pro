@@ -1,14 +1,45 @@
 import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
-import FaceitProvider from "next-auth/providers/faceit";
+
+const CustomFaceitProvider = {
+    id: "faceit",
+    name: "FACEIT",
+    type: "oauth" as const,
+    authorization: {
+        url: "https://accounts.faceit.com/accounts",
+        params: {
+            scope: "openid profile email",
+            redirect_popup: "false",
+        },
+    },
+    checks: ["state"] as ("pkce" | "state" | "none" | "nonce")[], // Disable PKCE which Faceit OAuth does not support and causes 400 Bad Request
+    token: "https://api.faceit.com/auth/v1/oauth/token",
+    userinfo: "https://api.faceit.com/auth/v1/resources/userinfo",
+    headers: {
+        Authorization: `Basic ${Buffer.from(
+            `${process.env.AUTH_FACEIT_ID}:${process.env.AUTH_FACEIT_SECRET}`
+        ).toString("base64")}`,
+    },
+    profile(profile: {
+        guid: string;
+        nickname: string;
+        email?: string;
+        picture?: string;
+        locale?: string;
+    }) {
+        return {
+            id: profile.guid,
+            name: profile.nickname,
+            email: profile.email,
+            image: profile.picture,
+        };
+    },
+    clientId: process.env.AUTH_FACEIT_ID,
+    clientSecret: process.env.AUTH_FACEIT_SECRET,
+};
 
 export const authOptions: NextAuthOptions = {
-    providers: [
-        FaceitProvider({
-            clientId: process.env.AUTH_FACEIT_ID || "",
-            clientSecret: process.env.AUTH_FACEIT_SECRET || "",
-        }),
-    ],
+    providers: [CustomFaceitProvider],
     pages: {
         signIn: "/login",
     },
