@@ -16,8 +16,8 @@ export const authOptions: NextAuthOptions = {
         async jwt({ token, account, profile }) {
             if (account && profile) {
                 token.accessToken = account.access_token;
-                token.faceitId = (profile as { guid?: string }).guid || profile.id;
-                token.nickname = (profile as { nickname?: string }).nickname || profile.name;
+                token.faceitId = (profile as { guid?: string }).guid || (profile as { id?: string }).id;
+                token.nickname = (profile as { nickname?: string }).nickname || (profile as { name?: string }).name;
             }
             return token;
         },
