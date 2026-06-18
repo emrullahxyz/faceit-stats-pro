@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, TrendingUp, Users, History, Download } from "lucide-react";
-import { Input, NicknameInput } from "@/components/ui/input";
+import { NicknameInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 

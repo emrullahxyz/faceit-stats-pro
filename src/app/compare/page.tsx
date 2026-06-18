@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, Users, ArrowLeftRight, Loader2, ExternalLink } from "lucide-react";
-import { Input, NicknameInput } from "@/components/ui/input";
+import { NicknameInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

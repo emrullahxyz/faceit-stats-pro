@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Menu, X, Gamepad2 } from "lucide-react";
-import { Input, NicknameInput } from "@/components/ui/input";
+import { NicknameInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { AuthButtons } from "@/components/auth/AuthButtons";
