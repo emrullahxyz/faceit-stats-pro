@@ -41,3 +41,10 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# local sqlite database (server has its own live copy; tracking this
+# risked git pull silently overwriting real production data)
+/prisma/dev.db
+/prisma/*.db-journal
+/prisma/*.db-wal
+/prisma/*.db-shm
