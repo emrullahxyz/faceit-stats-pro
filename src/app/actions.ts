@@ -5,7 +5,6 @@ import {
     getPlayerStats,
     getPlayerMatchHistory,
     getMatchDetails,
-    getMatchStats,
     getPlayerOngoingMatch,
     getPlayerMapStats,
     type FaceitPlayer,
@@ -16,6 +15,7 @@ import {
     type FaceitOngoingMatch,
     type PlayerMapStats,
 } from "@/lib/api";
+import { getMatchStatsCached } from "@/lib/match-stats-cache";
 import { getActiveApiKey } from "@/lib/api-keys";
 
 export async function fetchPlayerData(nickname: string): Promise<{
@@ -115,7 +115,7 @@ export async function fetchMatchWithStats(matchId: string): Promise<{
     try {
         const [match, stats] = await Promise.all([
             getMatchDetails(matchId, FACEIT_API_KEY),
-            getMatchStats(matchId, FACEIT_API_KEY).catch(() => null),
+            getMatchStatsCached(matchId, FACEIT_API_KEY).catch(() => null),
         ]);
         return { match, stats, error: null };
     } catch (error: unknown) {
@@ -173,11 +173,20 @@ export async function findSharedMatches(
     }>;
     player1Nickname: string;
     player2Nickname: string;
+    checkedCounts: { player1: number; player2: number };
+    partial: boolean;
     error: string | null;
 }> {
     const FACEIT_API_KEY = getActiveApiKey();
     if (!FACEIT_API_KEY) {
-        return { sharedMatches: [], player1Nickname: "", player2Nickname: "", error: "API key not configured." };
+        return {
+            sharedMatches: [],
+            player1Nickname: "",
+            player2Nickname: "",
+            checkedCounts: { player1: 0, player2: 0 },
+            partial: false,
+            error: "API key not configured.",
+        };
     }
 
     try {
@@ -196,14 +205,36 @@ export async function findSharedMatches(
                 sharedMatches: [],
                 player1Nickname: player1.nickname,
                 player2Nickname: player2.nickname,
+                checkedCounts: { player1: 0, player2: 0 },
+                partial: false,
                 error: "One or both players have no CS data.",
             };
         }
 
-        // Fetch match histories (last 50 matches for better coverage)
+        // Paginate up to 500 matches per player (5 pages of 100), sequentially.
+        // A failure on the first page is fatal for that player; a later-page
+        // failure just truncates coverage and flags the result as partial.
+        async function loadHistory(playerId: string, gameId: string) {
+            const items: FaceitMatch[] = [];
+            let partial = false;
+            for (let page = 0; page < 5; page++) {
+                try {
+                    const res = await getPlayerMatchHistory(playerId, gameId, FACEIT_API_KEY, 100, page * 100);
+                    const batch = res.items ?? [];
+                    items.push(...batch);
+                    if (batch.length < 100) break;
+                } catch (err) {
+                    if (page === 0) throw err;
+                    partial = true;
+                    break;
+                }
+            }
+            return { items, partial };
+        }
+
         const [history1, history2] = await Promise.all([
-            getPlayerMatchHistory(player1.player_id, gameId1, FACEIT_API_KEY, 50),
-            getPlayerMatchHistory(player2.player_id, gameId2, FACEIT_API_KEY, 50),
+            loadHistory(player1.player_id, gameId1),
+            loadHistory(player2.player_id, gameId2),
         ]);
 
         // Create a set of match IDs from player 2's history
@@ -260,11 +291,20 @@ export async function findSharedMatches(
             sharedMatches,
             player1Nickname: player1.nickname,
             player2Nickname: player2.nickname,
+            checkedCounts: { player1: history1.items.length, player2: history2.items.length },
+            partial: history1.partial || history2.partial,
             error: null,
         };
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Failed to find shared matches";
-        return { sharedMatches: [], player1Nickname: "", player2Nickname: "", error: message };
+        return {
+            sharedMatches: [],
+            player1Nickname: "",
+            player2Nickname: "",
+            checkedCounts: { player1: 0, player2: 0 },
+            partial: false,
+            error: message,
+        };
     }
 }
 

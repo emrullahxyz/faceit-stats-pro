@@ -88,45 +88,88 @@ export function MatchList({ matches, currentPlayerId, playerElo = 0, playerLevel
 
     // Fetch stats for all matches
     useEffect(() => {
+        let cancelled = false;
+
+        async function fetchMatchStats(matchId: string) {
+            try {
+                const response = await fetch(`/api/match-stats/${matchId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    return { matchId, stats: data };
+                }
+            } catch (error) {
+                console.error(`Failed to fetch stats for match ${matchId}`, error);
+            }
+            return { matchId, stats: null };
+        }
+
         async function fetchAllMatchStats() {
             setLoading(true);
             const statsMap: Record<string, MatchStats> = {};
+            const failedIds: string[] = [];
 
             // Fetch stats in parallel (max 5 at a time to avoid rate limiting)
             const batchSize = 5;
             for (let i = 0; i < matches.length; i += batchSize) {
                 const batch = matches.slice(i, i + batchSize);
                 const results = await Promise.all(
-                    batch.map(async (match) => {
-                        try {
-                            const response = await fetch(`/api/match-stats/${match.match_id}`);
-                            if (response.ok) {
-                                const data = await response.json();
-                                return { matchId: match.match_id, stats: data };
-                            }
-                        } catch (error) {
-                            console.error(`Failed to fetch stats for match ${match.match_id}`, error);
-                        }
-                        return { matchId: match.match_id, stats: null };
-                    })
+                    batch.map((match) => fetchMatchStats(match.match_id))
                 );
+
+                if (cancelled) return;
 
                 results.forEach(({ matchId, stats }) => {
                     if (stats) {
                         // Find player stats in the response
                         const playerStats = findPlayerStats(stats, currentPlayerId);
                         statsMap[matchId] = playerStats;
+                    } else {
+                        failedIds.push(matchId);
                     }
                 });
             }
 
+            if (cancelled) return;
             setMatchStats(statsMap);
             setLoading(false);
+
+            // Retry failed fetches once after a short delay (server throttles+caches,
+            // so failures are usually transient)
+            if (failedIds.length > 0) {
+                await new Promise((resolve) => setTimeout(resolve, 2500));
+                if (cancelled) return;
+
+                const recovered: Record<string, MatchStats> = {};
+                const retryBatchSize = 3;
+                for (let i = 0; i < failedIds.length; i += retryBatchSize) {
+                    const batch = failedIds.slice(i, i + retryBatchSize);
+                    const results = await Promise.all(
+                        batch.map((matchId) => fetchMatchStats(matchId))
+                    );
+
+                    if (cancelled) return;
+
+                    results.forEach(({ matchId, stats }) => {
+                        if (stats) {
+                            recovered[matchId] = findPlayerStats(stats, currentPlayerId);
+                        }
+                    });
+                }
+
+                if (cancelled) return;
+                if (Object.keys(recovered).length > 0) {
+                    setMatchStats((prev) => ({ ...prev, ...recovered }));
+                }
+            }
         }
 
         if (matches.length > 0) {
             fetchAllMatchStats();
         }
+
+        return () => {
+            cancelled = true;
+        };
     }, [matches, currentPlayerId, findPlayerStats]);
 
     const getPlayerTeam = (match: FaceitMatch) => {

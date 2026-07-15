@@ -111,6 +111,11 @@ export default function ComparePage() {
         result: string;
         sameTeam: boolean;
     }>>([]);
+    const [sharedError, setSharedError] = useState<string | null>(null);
+    const [sharedInfo, setSharedInfo] = useState<{
+        checkedCounts: { player1: number; player2: number };
+        partial: boolean;
+    } | null>(null);
     const router = useRouter();
 
     const handleMatchClick = (e: React.MouseEvent, matchId: string) => {
@@ -145,6 +150,8 @@ export default function ComparePage() {
         setError(null);
         setCompareResult(null);
         setSharedMatches([]);
+        setSharedError(null);
+        setSharedInfo(null);
 
         startTransition(async () => {
             // Fetch comparison data
@@ -162,8 +169,14 @@ export default function ComparePage() {
 
             // Also fetch shared matches
             const shared = await findSharedMatches(player1.trim(), player2.trim());
-            if (!shared.error) {
+            if (shared.error) {
+                setSharedError(shared.error);
+            } else {
                 setSharedMatches(shared.sharedMatches);
+                setSharedInfo({
+                    checkedCounts: shared.checkedCounts,
+                    partial: shared.partial,
+                });
             }
         });
     };
@@ -300,12 +313,33 @@ export default function ComparePage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {sharedMatches.length === 0 ? (
+                            {sharedError ? (
+                                <div className="p-4 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-500 text-center text-sm">
+                                    Couldn&apos;t load shared match history (Faceit API error). This is
+                                    usually temporary — please try comparing again in a moment.
+                                </div>
+                            ) : sharedMatches.length === 0 ? (
                                 <p className="text-center py-8 text-muted-foreground">
-                                    No shared matches found in recent history.
+                                    No shared matches found in the last{" "}
+                                    {sharedInfo?.checkedCounts.player1 ?? 0} matches of{" "}
+                                    {compareResult.player1.player.nickname} and{" "}
+                                    {sharedInfo?.checkedCounts.player2 ?? 0} matches of{" "}
+                                    {compareResult.player2.player.nickname}.
+                                    {sharedInfo?.partial && (
+                                        <span className="block mt-2 text-xs text-amber-500">
+                                            The check was incomplete due to Faceit API rate limits, so
+                                            some older matches may not have been scanned.
+                                        </span>
+                                    )}
                                 </p>
                             ) : (
                                 <div className="space-y-2">
+                                    {sharedInfo?.partial && (
+                                        <p className="text-xs text-amber-500 mb-2">
+                                            Note: the check was incomplete due to Faceit API rate
+                                            limits — there may be additional shared matches not shown.
+                                        </p>
+                                    )}
                                     {sharedMatches.map((match) => (
                                         <div
                                             key={match.matchId}

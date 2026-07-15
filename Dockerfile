@@ -2,6 +2,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# better-sqlite3 has no musl prebuilds, so Alpine must compile it from source
+RUN apk add --no-cache python3 make g++
+
 # Install dependencies
 COPY package*.json ./
 RUN npm ci

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMatchStats } from "@/lib/api";
+import { getMatchStatsCached } from "@/lib/match-stats-cache";
 import { isValidMatchId } from "@/lib/validation";
 import { getActiveApiKey } from "@/lib/api-keys";
 
@@ -24,8 +24,10 @@ export async function GET(
             );
         }
 
-        const stats = await getMatchStats(matchId, FACEIT_API_KEY);
-        return NextResponse.json(stats);
+        const stats = await getMatchStatsCached(matchId, FACEIT_API_KEY);
+        return NextResponse.json(stats, {
+            headers: { "Cache-Control": "private, max-age=3600" },
+        });
     } catch (error) {
         console.error("Failed to fetch match stats:", error);
         return NextResponse.json({ error: "Failed to fetch match stats" }, { status: 500 });

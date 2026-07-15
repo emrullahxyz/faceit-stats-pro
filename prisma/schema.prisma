@@ -47,3 +47,9 @@ model SearchHistory {
   @@index([userId])
   @@index([createdAt])
 }
+
+model MatchStatsCache {
+  matchId   String   @id
+  payload   String
+  createdAt DateTime @default(now())
+}

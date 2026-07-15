@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { getActiveApiKey, handleRateLimitError } from "./api-keys";
 
 const FACEIT_API_BASE = "https://open.faceit.com/data/v4";
@@ -11,17 +11,96 @@ const faceitApi = axios.create({
     },
 });
 
-// Axios interceptor for automatic key rotation on 429 errors
+// Custom per-request bookkeeping carried on the axios config.
+interface ThrottledConfig extends InternalAxiosRequestConfig {
+    __retryCount?: number;
+    __slotHeld?: boolean;
+}
+
+// ---- Global outgoing throttle -------------------------------------------
+// Faceit rate-limits per key aggressively, so cap how fast we hit it:
+// at most MAX_CONCURRENT in flight and >= MIN_SPACING_MS between request starts.
+const MAX_CONCURRENT = 4;
+const MIN_SPACING_MS = 250;
+
+let activeRequests = 0;
+let lastStart = 0;
+const slotQueue: Array<() => void> = [];
+
+function pumpSlots(): void {
+    if (slotQueue.length === 0 || activeRequests >= MAX_CONCURRENT) {
+        return;
+    }
+    const wait = lastStart + MIN_SPACING_MS - Date.now();
+    if (wait > 0) {
+        setTimeout(pumpSlots, wait);
+        return;
+    }
+    const grant = slotQueue.shift();
+    if (!grant) return;
+    activeRequests++;
+    lastStart = Date.now();
+    grant();
+    // Space out the next grant.
+    if (slotQueue.length > 0) {
+        setTimeout(pumpSlots, MIN_SPACING_MS);
+    }
+}
+
+function acquireSlot(): Promise<void> {
+    return new Promise((resolve) => {
+        slotQueue.push(resolve);
+        pumpSlots();
+    });
+}
+
+function releaseSlot(): void {
+    if (activeRequests > 0) {
+        activeRequests--;
+    }
+    pumpSlots();
+}
+
+// Acquire a throttle slot and stamp the freshest unblocked key at send time,
+// so queued/retried requests always use a currently-valid key.
+faceitApi.interceptors.request.use(async (config) => {
+    await acquireSlot();
+    try {
+        config.headers.Authorization = `Bearer ${getActiveApiKey()}`;
+    } catch (err) {
+        releaseSlot();
+        throw err;
+    }
+    (config as ThrottledConfig).__slotHeld = true;
+    return config;
+});
+
+// Release the slot on completion and retry (with backoff + key rotation) on 429.
 faceitApi.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        const cfg = response.config as ThrottledConfig;
+        if (cfg.__slotHeld) {
+            cfg.__slotHeld = false;
+            releaseSlot();
+        }
+        return response;
+    },
     async (error: AxiosError) => {
-        if (error.response?.status === 429) {
-            const switched = handleRateLimitError();
-            if (switched && error.config) {
-                // Retry with new key
-                const newKey = getActiveApiKey();
-                error.config.headers.Authorization = `Bearer ${newKey}`;
-                return axios(error.config);
+        const cfg = error.config as ThrottledConfig | undefined;
+        if (cfg?.__slotHeld) {
+            cfg.__slotHeld = false;
+            releaseSlot();
+        }
+
+        if (error.response?.status === 429 && cfg) {
+            handleRateLimitError();
+            const count = cfg.__retryCount ?? 0;
+            if (count < 2) {
+                cfg.__retryCount = count + 1;
+                const delay = 2000 + Math.random() * 500;
+                await new Promise((r) => setTimeout(r, delay));
+                // Re-enters the request interceptor: fresh slot + fresh key.
+                return faceitApi(cfg);
             }
         }
         return Promise.reject(error);
@@ -212,10 +291,11 @@ export async function getPlayerMatchHistory(
     playerId: string,
     gameId: string,
     apiKey: string,
-    limit: number = 20
+    limit: number = 20,
+    offset: number = 0
 ): Promise<FaceitMatchHistory> {
     const response = await faceitApi.get(`/players/${playerId}/history`, {
-        params: { game: gameId, limit },
+        params: { game: gameId, limit, offset },
         headers: { Authorization: `Bearer ${apiKey}` },
     });
     return response.data;

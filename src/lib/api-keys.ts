@@ -1,20 +1,15 @@
 /**
  * Faceit API Key Rotation System
- * Automatically switches between primary and backup keys on rate limit errors
+ * Per-key cooldowns: when a key hits a rate limit it is blocked for a fixed
+ * window. getActiveApiKey always returns a currently-unblocked key when one
+ * exists, otherwise the key that recovers soonest. A 429 on one key never
+ * resets another key's cooldown.
  */
 
 interface KeyState {
-    currentKeyIndex: number;
-    primaryBlockedUntil: number | null;
-    lastSwitchTime: number;
+    // blockedUntil[i] = epoch ms until which key i is rate-limited (0 = free)
+    blockedUntil: number[];
 }
-
-// In-memory state (resets on server restart)
-const state: KeyState = {
-    currentKeyIndex: 0,
-    primaryBlockedUntil: null,
-    lastSwitchTime: Date.now(),
-};
 
 // API Keys from environment
 const API_KEYS = [
@@ -22,55 +17,77 @@ const API_KEYS = [
     process.env.FACEIT_API_KEY_BACKUP,    // Backup key
 ].filter(Boolean) as string[];
 
-// How long to wait before trying primary key again (5 minutes)
-const PRIMARY_RETRY_INTERVAL = 5 * 60 * 1000;
+// How long a key stays blocked after a 429 (60 seconds)
+const KEY_COOLDOWN = 60 * 1000;
+
+// In-memory state (resets on server restart)
+const state: KeyState = {
+    blockedUntil: API_KEYS.map(() => 0),
+};
 
 /**
- * Get the current active API key
+ * Index of the key getActiveApiKey would currently return:
+ * the first unblocked key, or the one whose cooldown ends soonest.
+ */
+function activeKeyIndex(): number {
+    const now = Date.now();
+    for (let i = 0; i < API_KEYS.length; i++) {
+        if (state.blockedUntil[i] <= now) {
+            return i;
+        }
+    }
+    let soonest = 0;
+    for (let i = 1; i < API_KEYS.length; i++) {
+        if (state.blockedUntil[i] < state.blockedUntil[soonest]) {
+            soonest = i;
+        }
+    }
+    return soonest;
+}
+
+/**
+ * Get the current active API key. Never throws while at least one key is
+ * configured; throws only when no keys are set at all.
  */
 export function getActiveApiKey(): string {
-    // If we have a primary blocked time and it has passed, try primary again
-    if (state.primaryBlockedUntil && Date.now() > state.primaryBlockedUntil) {
-        console.log("[API Key] Primary key cooldown expired, switching back to primary");
-        state.currentKeyIndex = 0;
-        state.primaryBlockedUntil = null;
-    }
-
-    const key = API_KEYS[state.currentKeyIndex];
-    if (!key) {
+    if (API_KEYS.length === 0) {
         throw new Error("No Faceit API key configured");
     }
-    return key;
+    return API_KEYS[activeKeyIndex()];
 }
 
 /**
- * Call this when a rate limit error (429) is received
- * Switches to backup key if available
+ * Call this when a rate limit error (429) is received.
+ * Blocks the currently active key for the cooldown window and reports whether
+ * another key is available to retry with immediately. A 429 on the backup
+ * NEVER unblocks or resets the primary key's cooldown.
  */
 export function handleRateLimitError(): boolean {
-    if (API_KEYS.length <= 1) {
-        console.warn("[API Key] No backup key available, cannot switch");
+    if (API_KEYS.length === 0) {
         return false;
     }
 
-    if (state.currentKeyIndex === 0) {
-        // Primary key hit rate limit, switch to backup
-        state.currentKeyIndex = 1;
-        state.primaryBlockedUntil = Date.now() + PRIMARY_RETRY_INTERVAL;
-        state.lastSwitchTime = Date.now();
-        console.log("[API Key] Primary key rate limited, switched to backup. Will retry primary in 5 minutes.");
-        return true;
-    } else {
-        // Backup key also hit rate limit, back to primary
-        state.currentKeyIndex = 0;
-        state.primaryBlockedUntil = null;
-        console.warn("[API Key] Backup key also rate limited, switching back to primary");
-        return false;
+    const idx = activeKeyIndex();
+    const now = Date.now();
+    const wasBlocked = state.blockedUntil[idx] > now;
+    state.blockedUntil[idx] = now + KEY_COOLDOWN;
+
+    // Log only on the block transition, never per-call, to avoid log spam.
+    if (!wasBlocked) {
+        console.warn(`[API Key] Key #${idx} rate limited, blocked for ${KEY_COOLDOWN / 1000}s`);
     }
+
+    // Is there another key that is currently unblocked to retry with?
+    for (let i = 0; i < API_KEYS.length; i++) {
+        if (i !== idx && state.blockedUntil[i] <= now) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
- * Check if we should retry with another key
+ * Check if we have more than one key to rotate between
  */
 export function hasBackupKey(): boolean {
     return API_KEYS.length > 1;
@@ -84,48 +101,13 @@ export function getKeyStatus(): {
     backupAvailable: boolean;
     primaryBlockedFor?: number;
 } {
+    const idx = activeKeyIndex();
+    const now = Date.now();
     return {
-        activeKey: state.currentKeyIndex === 0 ? "primary" : "backup",
+        activeKey: idx === 0 ? "primary" : "backup",
         backupAvailable: API_KEYS.length > 1,
-        primaryBlockedFor: state.primaryBlockedUntil
-            ? Math.max(0, Math.round((state.primaryBlockedUntil - Date.now()) / 1000))
+        primaryBlockedFor: state.blockedUntil[0] > now
+            ? Math.round((state.blockedUntil[0] - now) / 1000)
             : undefined,
     };
-}
-
-/**
- * Wrapper for fetch with automatic key rotation on 429 errors
- */
-export async function faceitFetch(
-    url: string,
-    options: RequestInit = {}
-): Promise<Response> {
-    const apiKey = getActiveApiKey();
-
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            ...options.headers,
-        },
-    });
-
-    // Handle rate limit
-    if (response.status === 429) {
-        const switched = handleRateLimitError();
-        if (switched) {
-            // Retry with new key immediately
-            const newApiKey = getActiveApiKey();
-            console.log("[API Key] Retrying request with backup key...");
-            return fetch(url, {
-                ...options,
-                headers: {
-                    "Authorization": `Bearer ${newApiKey}`,
-                    ...options.headers,
-                },
-            });
-        }
-    }
-
-    return response;
 }
