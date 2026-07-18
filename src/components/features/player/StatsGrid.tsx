@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Target, Crosshair, Trophy, Flame, Gamepad2, TrendingUp } from "lucide-react";
+import { GlowCard } from "@/components/ui/glow-card";
+import { CountUp } from "@/components/ui/count-up";
 import type { FaceitPlayerStats } from "@/lib/api";
 
 interface StatsGridProps {
@@ -19,73 +19,71 @@ function findStat(lifetime: Record<string, string>, keys: string[]): string {
 export function StatsGrid({ stats }: StatsGridProps) {
     const lifetime = stats.lifetime || {};
 
-    // Log the actual lifetime keys for debugging (will show in server console)
-    console.log("Lifetime stats keys:", Object.keys(lifetime));
-    console.log("Lifetime stats:", lifetime);
-
     const statItems = [
         {
-            icon: Target,
-            label: "K/D Ratio",
-            // Try multiple possible field names
+            label: "K/D RATIO",
             value: findStat(lifetime, ["Average K/D Ratio", "K/D Ratio", "KD Ratio", "kd_ratio"]),
-            color: "text-green-400",
+            decimals: 2,
+            suffix: "",
         },
         {
-            icon: Trophy,
-            label: "Win Rate",
-            value: `${findStat(lifetime, ["Win Rate %", "Winrate", "Win rate %", "win_rate"])}%`,
-            color: "text-blue-400",
+            label: "WIN RATE",
+            value: findStat(lifetime, ["Win Rate %", "Winrate", "Win rate %", "win_rate"]),
+            decimals: 1,
+            suffix: "%",
         },
         {
-            icon: Crosshair,
-            label: "Headshot %",
-            value: `${findStat(lifetime, ["Average Headshots %", "Headshots %", "Headshot %", "hs_rate"])}%`,
-            color: "text-yellow-400",
+            label: "HEADSHOT %",
+            value: findStat(lifetime, ["Average Headshots %", "Headshots %", "Headshot %", "hs_rate"]),
+            decimals: 1,
+            suffix: "%",
         },
         {
-            icon: TrendingUp,
-            label: "Avg Kills",
-            value: findStat(lifetime, ["Average Kills", "Avg Kills", "avg_kills"]),
-            color: "text-purple-400",
+            label: "ADR",
+            value: findStat(lifetime, ["ADR", "Average ADR", "Average Damage per Round", "Average Kills", "Avg Kills"]),
+            decimals: 1,
+            suffix: "",
         },
         {
-            icon: Gamepad2,
-            label: "Matches",
-            value: parseInt(findStat(lifetime, ["Matches", "Total Matches", "matches"]) || "0").toLocaleString(),
-            color: "text-cyan-400",
+            label: "MATCHES",
+            value: findStat(lifetime, ["Matches", "Total Matches", "matches"]),
+            decimals: 0,
+            suffix: "",
         },
         {
-            icon: Flame,
-            label: "Best Streak",
+            label: "BEST STREAK",
             value: findStat(lifetime, ["Longest Win Streak", "Best Streak", "longest_win_streak"]),
-            color: "text-orange-400",
+            decimals: 0,
+            suffix: "",
         },
     ];
 
     return (
-        <Card className="border-border/50 bg-card/50">
-            <CardHeader>
-                <CardTitle className="text-lg">Lifetime Statistics</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    {statItems.map((stat, index) => (
-                        <div
-                            key={index}
-                            className="flex flex-col items-center p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
-                        >
-                            <stat.icon className={`h-6 w-6 mb-2 ${stat.color}`} />
-                            <span className="text-2xl font-bold text-foreground">
-                                {stat.value}
-                            </span>
-                            <span className="text-xs text-muted-foreground mt-1">
-                                {stat.label}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-            </CardContent>
-        </Card>
+        <section className="grid grid-cols-2 gap-[18px] md:grid-cols-3 xl:grid-cols-6">
+            {statItems.map((stat) => {
+                const num = parseFloat(stat.value);
+                return (
+                    <GlowCard
+                        key={stat.label}
+                        className="flex flex-col gap-2.5 rounded-tile px-5 pb-4 pt-5"
+                    >
+                        <span className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">
+                            {stat.label}
+                        </span>
+                        <span className="tabular font-mono text-[27px] font-bold leading-none text-foreground">
+                            {Number.isFinite(num) ? (
+                                <CountUp
+                                    value={num}
+                                    decimals={stat.decimals}
+                                    suffix={stat.suffix}
+                                />
+                            ) : (
+                                stat.value
+                            )}
+                        </span>
+                    </GlowCard>
+                );
+            })}
+        </section>
     );
 }

@@ -2,10 +2,35 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, TrendingUp, Users, History, Download } from "lucide-react";
-import { NicknameInput } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Search, BarChart3, Crosshair, ArrowLeftRight, Activity } from "lucide-react";
+import { GlowCard } from "@/components/ui/glow-card";
+
+const FEATURES = [
+  {
+    icon: BarChart3,
+    title: "Player Stats",
+    description: "Elo, K/D, ADR and 40+ metrics tracked across every queue you play.",
+    href: undefined as string | undefined,
+  },
+  {
+    icon: Crosshair,
+    title: "Match Analysis",
+    description: "Full scoreboards with per-player breakdowns for every map.",
+    href: "/match-analyzer" as string | undefined,
+  },
+  {
+    icon: ArrowLeftRight,
+    title: "PvP Compare",
+    description: "Head-to-head stat duels. Settle the argument with data.",
+    href: "/compare" as string | undefined,
+  },
+  {
+    icon: Activity,
+    title: "Live Match",
+    description: "Scout the lobby while the knife round is still loading.",
+    href: undefined as string | undefined,
+  },
+];
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("EarlyDomDom");
@@ -18,121 +43,77 @@ export default function HomePage() {
     }
   };
 
-  const features = [
-    {
-      icon: TrendingUp,
-      title: "ELO Tracking",
-      description: "Track your ELO progression with interactive charts and detailed match-by-match analysis.",
-    },
-    {
-      icon: Users,
-      title: "Player Comparison",
-      description: "Compare stats side-by-side with friends or rivals. See who dominates on which maps.",
-    },
-    {
-      icon: History,
-      title: "Match History",
-      description: "Browse through your recent matches, view detailed scoreboards and performance stats.",
-    },
-    {
-      icon: Download,
-      title: "Demo Downloads",
-      description: "Quick access to download match demos for review and analysis.",
-    },
-  ];
-
   return (
-    <div className="flex flex-col">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#ff5500]/10 via-transparent to-transparent" />
+    <div className="relative overflow-hidden">
+      {/* Ambient glows */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-[220px] left-1/2 h-[640px] w-[1100px] -translate-x-1/2 bg-[radial-gradient(closest-side,rgba(0,229,255,0.09),transparent_70%)]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-[180px] top-[120px] h-[640px] w-[640px] bg-[radial-gradient(closest-side,rgba(139,92,246,0.10),transparent_70%)]"
+      />
 
-        <div className="container mx-auto px-4 py-20 md:py-32">
-          <div className="mx-auto max-w-3xl text-center">
-            <h1 className="mb-6 text-4xl font-bold tracking-tight text-foreground md:text-6xl">
-              Your <span className="text-[#ff5500]">Faceit</span> Stats,{" "}
-              <span className="text-[#ff5500]">Elevated</span>
-            </h1>
-            <p className="mb-10 text-lg text-muted-foreground md:text-xl">
-              Deep dive into CS2 player statistics. Track ELO, analyze matches, compare with friends,
-              and discover insights that help you improve.
-            </p>
-
-            {/* Search Box */}
-            <form onSubmit={handleSearch} className="mx-auto max-w-xl">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                <NicknameInput
-                  type="text"
-                  placeholder="Enter a Faceit nickname..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onClear={() => setSearchQuery("")}
-                  clearButtonClassName="right-[100px]"
-                  className="h-14 pl-12 pr-32 text-lg bg-secondary/50 border-border/50 focus:bg-secondary focus:border-[#ff5500]/50"
-                />
-                <Button
-                  type="submit"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff5500] hover:bg-[#ff5500]/90"
-                >
-                  Search
-                </Button>
-              </div>
-            </form>
-          </div>
+      {/* Hero */}
+      <section className="relative flex min-h-[78vh] flex-col items-center justify-center gap-[26px] px-6 pb-[70px] pt-[90px] text-center">
+        <div className="font-mono text-xs tracking-[0.32em] text-cyan glow-text-cyan">
+          CS2 · FACEIT · REAL-TIME ANALYTICS
         </div>
-      </section>
+        <h1 className="gradient-headline m-0 max-w-[860px] text-[clamp(32px,6vw,68px)] font-extrabold leading-[1.05] tracking-[-0.02em]">
+          Your stats, weaponized.
+        </h1>
+        <p className="m-0 max-w-[520px] text-lg font-light text-muted-foreground">
+          Deep Faceit analytics for players who queue to win.
+        </p>
 
-      {/* Features Section */}
-      <section className="border-t border-border/40 bg-secondary/20">
-        <div className="container mx-auto px-4 py-16 md:py-24">
-          <div className="mb-12 text-center">
-            <h2 className="mb-4 text-3xl font-bold text-foreground">
-              Everything You Need
-            </h2>
-            <p className="text-muted-foreground">
-              Powerful tools to analyze and improve your competitive gameplay.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {features.map((feature, index) => (
-              <Card
-                key={index}
-                className="group border-border/50 bg-card/50 transition-all hover:border-[#ff5500]/30 hover:bg-card"
-              >
-                <CardHeader>
-                  <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-lg bg-[#ff5500]/10 text-[#ff5500] transition-colors group-hover:bg-[#ff5500]/20">
-                    <feature.icon className="h-6 w-6" />
-                  </div>
-                  <CardTitle className="text-lg">{feature.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription>{feature.description}</CardDescription>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="border-t border-border/40">
-        <div className="container mx-auto px-4 py-16 text-center">
-          <h2 className="mb-4 text-2xl font-bold text-foreground">
-            Ready to analyze your gameplay?
-          </h2>
-          <p className="mb-8 text-muted-foreground">
-            Search for any player to get started. No login required.
-          </p>
-          <Button
-            size="lg"
-            className="bg-[#ff5500] hover:bg-[#ff5500]/90"
-            onClick={() => document.querySelector("input")?.focus()}
+        {/* Glowing hero search */}
+        <form
+          onSubmit={handleSearch}
+          className="relative mt-[10px] w-[min(680px,92vw)]"
+        >
+          <Search className="pointer-events-none absolute left-[22px] top-1/2 h-5 w-5 -translate-y-1/2 text-cyan drop-shadow-[0_0_6px_rgba(0,229,255,0.6)]" />
+          <input
+            type="text"
+            placeholder="Enter Faceit nickname..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={(e) => e.currentTarget.select()}
+            className="h-[66px] w-full rounded-2xl border border-cyan/25 bg-[rgba(12,14,17,0.72)] pl-[58px] pr-[110px] text-lg text-foreground outline-none backdrop-blur-[14px] transition-[border-color] duration-300 [box-shadow:0_0_30px_rgba(0,229,255,0.07),0_14px_40px_rgba(0,0,0,0.5)] focus:border-cyan/85 focus:animate-pulse-glow"
+          />
+          <button
+            type="submit"
+            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-md border border-white/10 px-2 py-1 font-mono text-[11px] text-text-faint transition-colors hover:border-cyan/60 hover:text-cyan"
           >
-            Get Started
-          </Button>
+            ⏎ SEARCH
+          </button>
+        </form>
+      </section>
+
+      {/* Bento strip */}
+      <section className="relative mx-auto max-w-[1280px] px-6 pb-10 sm:px-10">
+        <h2 className="m-0 mb-5 text-[15px] font-semibold tracking-[0.22em] text-muted-foreground">
+          WHAT&apos;S INSIDE
+        </h2>
+        <div className="grid grid-cols-1 gap-[22px] sm:grid-cols-2 lg:grid-cols-4">
+          {FEATURES.map((f) => (
+            <GlowCard
+              key={f.title}
+              href={f.href}
+              className="flex flex-col gap-3.5 px-6 pb-[22px] pt-[26px] text-foreground"
+            >
+              <div className="flex h-[46px] w-[46px] items-center justify-center rounded-[13px] border border-cyan/25 bg-cyan/[0.08] shadow-[inset_0_0_14px_rgba(0,229,255,0.12)]">
+                <f.icon className="h-[22px] w-[22px] text-cyan" />
+              </div>
+              <div className="text-[19px] font-bold">{f.title}</div>
+              <div className="text-[13.5px] font-light leading-[1.55] text-muted-foreground">
+                {f.description}
+              </div>
+              <div className="mt-auto font-mono text-[11px] tracking-[0.14em] text-cyan">
+                EXPLORE →
+              </div>
+            </GlowCard>
+          ))}
         </div>
       </section>
     </div>

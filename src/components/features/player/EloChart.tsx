@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, TrendingUp, TrendingDown } from "lucide-react";
 import {
     XAxis,
     YAxis,
@@ -51,32 +49,39 @@ export function EloChart({ playerId, playerNickname }: EloChartProps) {
         }
     }, [playerId]);
 
+    const header = (
+        <div className="flex flex-col gap-1">
+            <span className="font-mono text-[10px] tracking-[0.24em] text-muted-foreground">
+                ELO HISTORY
+            </span>
+            <span className="text-[17px] font-bold">
+                {playerNickname}&apos;s progression
+            </span>
+        </div>
+    );
+
     if (loading) {
         return (
-            <Card className="border-border/50 bg-card/50">
-                <CardHeader>
-                    <CardTitle className="text-lg">{playerNickname}&apos;s ELO History</CardTitle>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center py-12">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    <span className="ml-2 text-muted-foreground">Loading ELO history...</span>
-                </CardContent>
-            </Card>
+            <section className="hud-glass px-7 py-[26px]">
+                {header}
+                <div className="mt-5 space-y-3">
+                    <div className="hud-skeleton h-40 w-full rounded-xl" />
+                    <div className="hud-skeleton h-3 w-2/3" />
+                </div>
+            </section>
         );
     }
 
     if (error || eloHistory.length === 0) {
         return (
-            <Card className="border-border/50 bg-card/50">
-                <CardHeader>
-                    <CardTitle className="text-lg">{playerNickname}&apos;s ELO History</CardTitle>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center py-12">
+            <section className="hud-glass px-7 py-[26px]">
+                {header}
+                <div className="flex items-center justify-center py-12">
                     <span className="text-muted-foreground">
                         {error || "No ELO history available"}
                     </span>
-                </CardContent>
-            </Card>
+                </div>
+            </section>
         );
     }
 
@@ -98,98 +103,81 @@ export function EloChart({ playerId, playerNickname }: EloChartProps) {
     }));
 
     return (
-        <Card className="border-border/50 bg-card/50">
-            <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <CardTitle className="text-lg">{playerNickname}&apos;s ELO History</CardTitle>
-                        <p className="text-xs text-muted-foreground/60">Estimated progression based on win/loss history</p>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-1">
-                            {eloChange >= 0 ? (
-                                <TrendingUp className="h-4 w-4 text-green-500" />
-                            ) : (
-                                <TrendingDown className="h-4 w-4 text-red-500" />
-                            )}
-                            <span className={eloChange >= 0 ? "text-green-500" : "text-red-500"}>
-                                {eloChange >= 0 ? "+" : ""}{eloChange}
-                            </span>
-                        </div>
-                        <span className="text-muted-foreground">
-                            Last {eloHistory.length} matches
-                        </span>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                {/* Stats Row */}
-                <div className="flex gap-6 mb-4 text-sm">
-                    <div>
-                        <span className="text-muted-foreground">Current: </span>
-                        <span className="font-semibold text-foreground">{currentElo}</span>
-                    </div>
-                    <div>
-                        <span className="text-muted-foreground">Peak: </span>
-                        <span className="font-semibold text-green-500">{maxElo}</span>
-                    </div>
-                    <div>
-                        <span className="text-muted-foreground">Lowest: </span>
-                        <span className="font-semibold text-red-500">{minElo}</span>
-                    </div>
-                </div>
+        <section className="hud-glass px-7 py-[26px]">
+            <div className="mb-[18px] flex items-baseline justify-between">
+                {header}
+                <span
+                    className={`font-mono text-xs ${eloChange >= 0 ? "text-success" : "text-danger"}`}
+                >
+                    {eloChange >= 0 ? "▲ +" : "▼ "}
+                    {eloChange} this window
+                </span>
+            </div>
 
-                {/* Chart */}
-                <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart
-                            data={chartData}
-                            margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                        >
-                            <defs>
-                                <linearGradient id="eloGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#ff5500" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#ff5500" stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.3} />
-                            <XAxis
-                                dataKey="displayDate"
-                                tick={{ fill: "#888", fontSize: 11 }}
-                                tickLine={{ stroke: "#444" }}
-                                axisLine={{ stroke: "#444" }}
-                                interval="preserveStartEnd"
-                            />
-                            <YAxis
-                                domain={[minElo - 50, maxElo + 50]}
-                                tick={{ fill: "#888", fontSize: 11 }}
-                                tickLine={{ stroke: "#444" }}
-                                axisLine={{ stroke: "#444" }}
-                                width={50}
-                            />
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: "#1a1a1a",
-                                    border: "1px solid #333",
-                                    borderRadius: "8px",
-                                    color: "#fff",
-                                }}
-                                labelStyle={{ color: "#888" }}
-                                formatter={(value) => [`${value} ELO`, "Rating"]}
-                            />
-                            <Area
-                                type="monotone"
-                                dataKey="elo"
-                                stroke="#ff5500"
-                                strokeWidth={2}
-                                fill="url(#eloGradient)"
-                                dot={false}
-                                activeDot={{ r: 6, fill: "#ff5500", stroke: "#fff", strokeWidth: 2 }}
-                            />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                </div>
-            </CardContent>
-        </Card>
+            {/* Chart */}
+            <div className="h-60">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                        data={chartData}
+                        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                    >
+                        <defs>
+                            <linearGradient id="eloGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#00E5FF" stopOpacity={0.22} />
+                                <stop offset="100%" stopColor="#00E5FF" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid
+                            strokeDasharray="0"
+                            stroke="rgba(255,255,255,0.06)"
+                            vertical={false}
+                        />
+                        <XAxis
+                            dataKey="displayDate"
+                            tick={{ fill: "#525C68", fontSize: 11, fontFamily: "var(--font-geist-mono)" }}
+                            tickLine={false}
+                            axisLine={{ stroke: "rgba(255,255,255,0.08)" }}
+                            interval="preserveStartEnd"
+                        />
+                        <YAxis
+                            domain={[minElo - 50, maxElo + 50]}
+                            tick={{ fill: "#525C68", fontSize: 11, fontFamily: "var(--font-geist-mono)" }}
+                            tickLine={false}
+                            axisLine={false}
+                            width={50}
+                        />
+                        <Tooltip
+                            contentStyle={{
+                                backgroundColor: "#101014",
+                                border: "1px solid rgba(0,229,255,0.25)",
+                                borderRadius: "10px",
+                                color: "#EAF0F2",
+                                fontFamily: "var(--font-geist-mono)",
+                                fontSize: 12,
+                                boxShadow: "0 0 24px rgba(0,229,255,0.15)",
+                            }}
+                            labelStyle={{ color: "#8A93A0" }}
+                            formatter={(value) => [`${value} ELO`, "Rating"]}
+                        />
+                        <Area
+                            type="monotone"
+                            dataKey="elo"
+                            stroke="#00E5FF"
+                            strokeWidth={2.4}
+                            fill="url(#eloGradient)"
+                            dot={false}
+                            activeDot={{ r: 5, fill: "#070708", stroke: "#00E5FF", strokeWidth: 2.4 }}
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
+
+            {/* LOW / count / PEAK footer */}
+            <div className="mt-2.5 flex justify-between font-mono text-[11px] text-text-faint">
+                <span>{minElo} LOW</span>
+                <span>{eloHistory.length} MATCHES · CURRENT {currentElo}</span>
+                <span>{maxElo} PEAK</span>
+            </div>
+        </section>
     );
 }

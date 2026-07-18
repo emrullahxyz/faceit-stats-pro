@@ -1,26 +1,10 @@
-import { Github } from "lucide-react";
-import Link from "next/link";
-
 export function Footer() {
     return (
-        <footer className="border-t border-border/40 bg-background/95">
-            <div className="container mx-auto flex flex-col items-center justify-between gap-4 py-6 px-4 md:flex-row">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span>© 2026 Faceit Stats Pro</span>
-                    <span className="hidden md:inline">•</span>
-                    <span className="hidden md:inline">Not affiliated with Faceit</span>
-                </div>
-                <div className="flex items-center gap-4">
-                    <Link
-                        href="https://github.com"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                        <Github className="h-5 w-5" />
-                    </Link>
-                </div>
-            </div>
+        <footer className="flex items-center justify-between border-t border-white/[0.06] px-5 py-[22px] sm:px-10">
+            <span className="font-mono text-[11px] tracking-[0.1em] text-text-faint">
+                FACEIT STATS PRO — NOT AFFILIATED WITH FACEIT LTD
+            </span>
+            <span className="font-mono text-[11px] text-text-faint">v2.0</span>
         </footer>
     );
 }

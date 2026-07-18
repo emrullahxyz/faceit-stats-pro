@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Outfit, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -9,14 +9,17 @@ import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import SettingsPanel from "@/components/features/SettingsPanel";
 import { Toaster } from "sonner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// "Holographic HUD" typography: Outfit for headings/UI, Geist Mono for all stats.
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -33,9 +36,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
+        className={`${outfit.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+        {/* Design system is dark-only ("Holographic HUD") */}
+        <ThemeProvider attribute="class" forcedTheme="dark">
           <QueryProvider>
             <AuthProvider>
               <Navbar />

@@ -2,10 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Loader2, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import type { FaceitMatch } from "@/lib/api";
 
 // Helper to format map name (remove de_ prefix)
@@ -32,21 +29,34 @@ interface MatchStats {
     map: string;
 }
 
-// Level colors matching Faceit
-const levelColors: Record<number, string> = {
-    1: "bg-gray-500",
-    2: "bg-green-600",
-    3: "bg-green-500",
-    4: "bg-lime-500",
-    5: "bg-yellow-500",
-    6: "bg-yellow-400",
-    7: "bg-orange-500",
-    8: "bg-orange-400",
-    9: "bg-red-500",
-    10: "bg-[#ff5500]",
+// Map tile codes + gradients (design: "Holographic HUD" match rows)
+const MAP_TILES: Record<string, string> = {
+    mirage: "linear-gradient(135deg,#3A5A6E,#1C2B36)",
+    inferno: "linear-gradient(135deg,#6E4A3A,#331F16)",
+    nuke: "linear-gradient(135deg,#5A6E3A,#28331C)",
+    ancient: "linear-gradient(135deg,#3A6E52,#16332A)",
+    anubis: "linear-gradient(135deg,#6E663A,#33301C)",
+    dust2: "linear-gradient(135deg,#6E5E3A,#332C16)",
+    vertigo: "linear-gradient(135deg,#4A4A6E,#1F1F33)",
+    overpass: "linear-gradient(135deg,#3A6E6E,#163333)",
+    train: "linear-gradient(135deg,#5E5E66,#26262B)",
 };
+const DEFAULT_TILE = "linear-gradient(135deg,#44505A,#1A2026)";
 
-export function MatchList({ matches, currentPlayerId, playerElo = 0, playerLevel = 1, playerNickname = "" }: MatchListProps) {
+function timeAgo(timestamp: number): string {
+    const diff = Date.now() - timestamp * 1000;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${Math.max(mins, 1)}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return "yesterday";
+    if (days < 7) return `${days}d ago`;
+    const weeks = Math.floor(days / 7);
+    return weeks === 1 ? "1w ago" : `${weeks}w ago`;
+}
+
+export function MatchList({ matches, currentPlayerId, playerNickname = "" }: MatchListProps) {
     const router = useRouter();
     const [matchStats, setMatchStats] = useState<Record<string, MatchStats>>({});
     const [loading, setLoading] = useState(() => matches.length > 0);
@@ -194,14 +204,6 @@ export function MatchList({ matches, currentPlayerId, playerElo = 0, playerLevel
         return { playerScore, opponentScore };
     };
 
-    const formatDate = (timestamp: number) => {
-        return new Date(timestamp * 1000).toLocaleDateString("en-US", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-        });
-    };
-
     const handleMatchClick = (e: React.MouseEvent, matchId: string) => {
         // Ctrl+Click or Cmd+Click - let browser handle it naturally
         if (e.ctrlKey || e.metaKey) {
@@ -226,152 +228,145 @@ export function MatchList({ matches, currentPlayerId, playerElo = 0, playerLevel
         window.open(cleanUrl, "_blank");
     };
 
+    const GRID =
+        "grid grid-cols-[minmax(140px,200px)_80px_64px_120px_70px_70px_70px_1fr] gap-3";
+
     if (!matches || matches.length === 0) {
         return (
-            <Card className="border-border/50 bg-card/50">
-                <CardHeader>
-                    <CardTitle className="text-lg">Last matches</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground text-center py-8">
-                        No recent matches found.
-                    </p>
-                </CardContent>
-            </Card>
+            <section className="hud-glass p-7">
+                <span className="font-mono text-[10px] tracking-[0.24em] text-muted-foreground">
+                    MATCH HISTORY
+                </span>
+                <p className="py-8 text-center text-muted-foreground">
+                    No recent matches found.
+                </p>
+            </section>
         );
     }
 
     return (
-        <Card className="border-border/50 bg-card/50">
-            <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">Last matches</CardTitle>
-                    <Button
-                        variant="link"
-                        size="sm"
-                        className="text-[#ff5500] text-xs gap-1"
-                        onClick={() => {
-                            // Open Faceit match history for this player
-                            if (playerNickname) {
-                                const faceitUrl = `https://www.faceit.com/en/players/${playerNickname}/stats/cs2`;
-                                window.open(faceitUrl, '_blank');
-                            }
-                        }}
+        <section className="hud-glass relative overflow-hidden">
+            {/* Card header */}
+            <div className="flex items-center justify-between px-7 pb-4 pt-6">
+                <div className="flex flex-col gap-1">
+                    <span className="font-mono text-[10px] tracking-[0.24em] text-muted-foreground">
+                        MATCH HISTORY
+                    </span>
+                    <span className="text-[17px] font-bold">
+                        Last {matches.length} matches
+                    </span>
+                </div>
+                {playerNickname && (
+                    <a
+                        href={`https://www.faceit.com/en/players/${playerNickname}/stats/cs2`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 font-mono text-[11px] tracking-[0.12em] text-orange-light transition-colors hover:text-orange"
                     >
-                        SEE FULL MATCH HISTORY
+                        FULL HISTORY
                         <ExternalLink className="h-3 w-3" />
-                    </Button>
-                </div>
-            </CardHeader>
-            <CardContent className="p-0">
-                {/* Table Header */}
-                <div className="grid grid-cols-[100px_80px_100px_100px_60px_60px_60px_100px_auto] gap-2 px-4 py-2 text-xs text-muted-foreground border-b border-border/30 font-medium">
-                    <span>Date</span>
-                    <span>Score</span>
-                    <span>Skill level</span>
-                    <span>KDA</span>
-                    <span>ADR</span>
-                    <span>K/D</span>
-                    <span>K/R</span>
-                    <span>Map</span>
-                    <span>Match Type</span>
-                </div>
-
-                {/* Loading indicator */}
-                {loading && (
-                    <div className="flex items-center justify-center py-4 text-muted-foreground text-sm">
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Loading match stats...
-                    </div>
+                    </a>
                 )}
+            </div>
 
-                {/* Match Rows */}
-                <div className="divide-y divide-border/20">
-                    {matches.map((match) => {
-                        const won = isWin(match);
-                        const { playerScore, opponentScore } = getScore(match);
-                        const stats = matchStats[match.match_id];
+            {/* Column heads */}
+            <div
+                className={`${GRID} border-b border-white/[0.07] px-7 py-2 font-mono text-[10px] tracking-[0.16em] text-text-faint`}
+            >
+                <span>MAP</span>
+                <span>SCORE</span>
+                <span>RESULT</span>
+                <span>K / D / A</span>
+                <span>ADR</span>
+                <span>HS%</span>
+                <span>K/R</span>
+                <span className="text-right">PLAYED</span>
+            </div>
 
-                        return (
-                            <a
-                                key={match.match_id}
-                                href={`/match/${match.match_id}`}
-                                onClick={(e) => handleMatchClick(e, match.match_id)}
-                                className="grid grid-cols-[100px_80px_100px_100px_60px_60px_60px_100px_auto] gap-2 px-4 py-3 hover:bg-secondary/20 cursor-pointer transition-colors items-center text-sm no-underline text-inherit"
-                            >
-                                {/* Date */}
-                                <span className="text-muted-foreground text-xs">
-                                    {formatDate(match.finished_at)}
-                                </span>
-
-                                {/* Score */}
-                                <div className="flex items-center gap-2">
-                                    <Badge
-                                        variant={won ? "success" : "destructive"}
-                                        className="w-5 h-5 p-0 flex items-center justify-center text-[10px] font-bold rounded-sm"
-                                    >
-                                        {won ? "W" : "L"}
-                                    </Badge>
-                                    <span className="text-foreground font-medium">
-                                        {playerScore} : {opponentScore}
-                                    </span>
-                                </div>
-
-                                {/* Skill Level */}
-                                <div className="flex items-center gap-2">
-                                    <div className={`h-5 w-5 rounded-full ${levelColors[playerLevel]} flex items-center justify-center text-white text-[10px] font-bold`}>
-                                        {playerLevel}
-                                    </div>
-                                    <span className="text-foreground text-xs">
-                                        {playerElo > 0 ? playerElo.toLocaleString() : "--"}
-                                    </span>
-                                </div>
-
-                                {/* KDA */}
-                                <span className="text-foreground text-xs">
-                                    {stats ? `${stats.kills}/${stats.deaths}/${stats.assists}` : "--/--/--"}
-                                </span>
-
-                                {/* ADR */}
-                                <span className="text-muted-foreground text-xs">
-                                    {stats?.adr || "--"}
-                                </span>
-
-                                {/* K/D */}
-                                <span className="text-foreground text-xs">
-                                    {stats?.kd || "--"}
-                                </span>
-
-                                {/* K/R */}
-                                <span className="text-muted-foreground text-xs">
-                                    {stats?.kr || "--"}
-                                </span>
-
-                                {/* Map */}
-                                <span className="text-foreground text-xs">
-                                    {stats?.map || "Unknown"}
-                                </span>
-
-                                {/* Match Type + Actions */}
-                                <div className="flex items-center justify-between">
-                                    <span className="text-muted-foreground text-xs capitalize">
-                                        Cs2
-                                    </span>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 text-muted-foreground hover:text-[#ff5500]"
-                                        onClick={(e) => handleViewOnFaceit(e, match.faceit_url)}
-                                        title="View on Faceit"
-                                    >
-                                        <ExternalLink className="h-3 w-3" />
-                                    </Button>
-                                </div>
-                            </a>
+            {/* Rows */}
+            <div className="flex flex-col">
+                {matches.map((match) => {
+                    const won = isWin(match);
+                    const { playerScore, opponentScore } = getScore(match);
+                    const stats = matchStats[match.match_id];
+                    const mapKey = (stats?.map || "").toLowerCase();
+                    const tile = MAP_TILES[mapKey] || DEFAULT_TILE;
+                    const statCell = (v?: string) =>
+                        stats ? (
+                            <span className="tabular font-mono text-[13px] text-text-bright">
+                                {v || "--"}
+                            </span>
+                        ) : loading ? (
+                            <span className="hud-skeleton inline-block h-3 w-10" />
+                        ) : (
+                            <span className="font-mono text-[13px] text-text-faint">--</span>
                         );
-                    })}
-                </div>
-            </CardContent>
-        </Card>
+
+                    return (
+                        <a
+                            key={match.match_id}
+                            href={`/match/${match.match_id}`}
+                            onClick={(e) => handleMatchClick(e, match.match_id)}
+                            className={`${GRID} items-center border-b border-white/[0.045] px-7 py-3 text-foreground transition-colors hover:bg-cyan/[0.045]`}
+                        >
+                            {/* Map */}
+                            <div className="flex items-center gap-3">
+                                <div
+                                    className="flex h-7 w-11 items-center justify-center rounded-[7px] border border-white/10 font-mono text-[9px] font-bold tracking-[0.08em] text-white/85"
+                                    style={{ background: tile }}
+                                >
+                                    {stats?.map
+                                        ? stats.map.slice(0, 3).toUpperCase()
+                                        : "CS2"}
+                                </div>
+                                <span className="text-sm font-semibold capitalize">
+                                    {stats?.map || "—"}
+                                </span>
+                            </div>
+
+                            {/* Score */}
+                            <span className="tabular font-mono text-[13.5px] text-text-bright">
+                                {playerScore}-{opponentScore}
+                            </span>
+
+                            {/* Result pill */}
+                            <span
+                                className={`justify-self-start rounded-full px-2.5 py-[3px] font-mono text-[10.5px] font-bold tracking-[0.1em] ${
+                                    won
+                                        ? "border border-success/35 bg-success/[0.08] text-success"
+                                        : "border border-danger/35 bg-danger/[0.08] text-danger"
+                                }`}
+                            >
+                                {won ? "WIN" : "LOSS"}
+                            </span>
+
+                            {/* K/D/A, ADR, HS%, K/R */}
+                            {statCell(
+                                stats
+                                    ? `${stats.kills} / ${stats.deaths} / ${stats.assists}`
+                                    : undefined
+                            )}
+                            {statCell(stats?.adr)}
+                            {statCell(stats?.hs ? `${stats.hs}%` : undefined)}
+                            {statCell(stats?.kr)}
+
+                            {/* Played + Faceit link */}
+                            <div className="flex items-center justify-end gap-2">
+                                <span className="font-mono text-[11.5px] text-text-faint">
+                                    {timeAgo(match.finished_at)}
+                                </span>
+                                <button
+                                    onClick={(e) => handleViewOnFaceit(e, match.faceit_url)}
+                                    title="View on Faceit"
+                                    className="text-text-faint transition-colors hover:text-orange-light"
+                                >
+                                    <ExternalLink className="h-3 w-3" />
+                                </button>
+                            </div>
+                        </a>
+                    );
+                })}
+            </div>
+        </section>
     );
 }

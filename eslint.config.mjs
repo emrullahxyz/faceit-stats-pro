@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Claude Code hook'ları Node CommonJS scriptleridir, uygulama kodu değil.
+    ".claude/**",
   ]),
 ]);
 

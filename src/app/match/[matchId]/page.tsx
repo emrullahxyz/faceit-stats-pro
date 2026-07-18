@@ -4,13 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-    Loader2, Gamepad2, Trophy, Target,
-    Clock, Calendar, ExternalLink, ChevronLeft, Star
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Gamepad2, ExternalLink, ChevronLeft, Crown } from "lucide-react";
 
 interface PlayerStats {
     player_id: string;
@@ -21,11 +15,9 @@ interface PlayerStats {
         Assists: string;
         Headshots: string;
         "Headshots %"?: string;
+        ADR?: string;
         MVPs?: string;
-        "Triple Kills"?: string;
-        "Quadro Kills"?: string;
-        "Penta Kills"?: string;
-    };
+    } & Record<string, string | undefined>;
 }
 
 interface TeamData {
@@ -56,6 +48,44 @@ interface MatchStats {
         round_stats: { Map: string; Score: string };
         teams: TeamData[];
     }>;
+}
+
+// Map tile gradients (shared visual language with MatchList)
+const MAP_TILES: Record<string, string> = {
+    mirage: "linear-gradient(135deg,#3A5A6E,#1C2B36)",
+    inferno: "linear-gradient(135deg,#6E4A3A,#331F16)",
+    nuke: "linear-gradient(135deg,#5A6E3A,#28331C)",
+    ancient: "linear-gradient(135deg,#3A6E52,#16332A)",
+    anubis: "linear-gradient(135deg,#6E663A,#33301C)",
+    dust2: "linear-gradient(135deg,#6E5E3A,#332C16)",
+    vertigo: "linear-gradient(135deg,#4A4A6E,#1F1F33)",
+    overpass: "linear-gradient(135deg,#3A6E6E,#163333)",
+    train: "linear-gradient(135deg,#5E5E66,#26262B)",
+};
+const DEFAULT_TILE = "linear-gradient(135deg,#44505A,#1A2026)";
+
+const SCOREBOARD_GRID =
+    "grid grid-cols-[minmax(0,1fr)_36px_36px_36px_48px_48px_44px] gap-1.5";
+
+function SkeletonRows({ count = 5 }: { count?: number }) {
+    return (
+        <div className="flex flex-col">
+            {Array.from({ length: count }, (_, i) => (
+                <div
+                    key={i}
+                    className={`${SCOREBOARD_GRID} items-center border-b border-white/[0.045] px-6 py-3`}
+                >
+                    <div className="flex items-center gap-[11px]">
+                        <div className="hud-skeleton h-8 w-8 rounded-full" />
+                        <div className="hud-skeleton h-3 w-24" />
+                    </div>
+                    {Array.from({ length: 6 }, (_, j) => (
+                        <div key={j} className="hud-skeleton h-3" />
+                    ))}
+                </div>
+            ))}
+        </div>
+    );
 }
 
 export default function MatchPage() {
@@ -89,179 +119,330 @@ export default function MatchPage() {
 
     if (loading) {
         return (
-            <div className="container mx-auto px-4 py-16 flex items-center justify-center">
-                <Loader2 className="h-12 w-12 animate-spin text-[#ff5500]" />
+            <div className="mx-auto max-w-[1280px] space-y-[22px] px-5 py-[34px] sm:px-10">
+                <div className="hud-skeleton h-[120px] w-full rounded-[24px]" />
+                <div className="hud-glass overflow-hidden">
+                    <SkeletonRows />
+                </div>
+                <div className="hud-glass overflow-hidden">
+                    <SkeletonRows />
+                </div>
             </div>
         );
     }
 
     if (error || !match) {
         return (
-            <div className="container mx-auto px-4 py-16 text-center">
-                <Gamepad2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h1 className="text-2xl font-bold mb-2">Match Not Found</h1>
-                <p className="text-muted-foreground mb-6">{error}</p>
-                <Button variant="outline" onClick={() => router.back()}>
-                    <ChevronLeft className="h-4 w-4 mr-2" />Back
-                </Button>
+            <div className="mx-auto max-w-[1280px] px-5 py-16 text-center">
+                <Gamepad2 className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
+                <h1 className="mb-2 text-2xl font-bold">Match Not Found</h1>
+                <p className="mb-6 text-muted-foreground">{error}</p>
+                <button
+                    onClick={() => router.back()}
+                    className="inline-flex h-[42px] items-center gap-2 rounded-xl border border-white/[0.14] bg-white/[0.04] px-5 text-sm font-semibold transition-colors hover:border-cyan/60"
+                >
+                    <ChevronLeft className="h-4 w-4" />
+                    Back
+                </button>
             </div>
         );
     }
 
     const round = stats?.rounds?.[0];
     const mapName = round?.round_stats?.Map || match.voting?.map?.pick?.[0] || "Unknown";
+    const mapClean = mapName.replace(/^de_/i, "").replace(/^cs_/i, "");
+    const tile = MAP_TILES[mapClean.toLowerCase()] || DEFAULT_TILE;
     const team1 = round?.teams?.[0];
     const team2 = round?.teams?.[1];
 
     // Parse score from round_stats.Score (format: "13 / 7")
     const scoreStr = round?.round_stats?.Score || "";
-    const scoreParts = scoreStr.split("/").map(s => parseInt(s.trim()) || 0);
+    const scoreParts = scoreStr.split("/").map((s) => parseInt(s.trim()) || 0);
     const score1 = scoreParts[0] || match.results?.score?.faction1 || 0;
     const score2 = scoreParts[1] || match.results?.score?.faction2 || 0;
     const isTeam1Winner = score1 > score2 || match.results?.winner === "faction1";
 
-    const formatDate = (ts: number) => new Date(ts * 1000).toLocaleDateString("tr-TR");
-    const formatTime = (ts: number) => new Date(ts * 1000).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+    const faceitUrl = (() => {
+        try {
+            return decodeURIComponent(match.faceit_url).replace(/\/{lang}/g, "");
+        } catch {
+            return match.faceit_url.replace(/\/{lang}/g, "");
+        }
+    })();
 
-    const Scoreboard = ({ team, teamName, isWinner }: { team?: TeamData; teamName: string; isWinner: boolean }) => {
+    const dateMeta = `${new Date(match.finished_at * 1000)
+        .toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+        .toUpperCase()} · ${new Date(match.started_at * 1000).toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+    })} · CS2`;
+
+    // Match MVP = top fragger across both teams
+    const allPlayers = [...(team1?.players ?? []), ...(team2?.players ?? [])];
+    const mvpId = allPlayers.reduce(
+        (best, p) =>
+            parseInt(p.player_stats.Kills || "0") >
+            parseInt(best?.player_stats.Kills || "-1")
+                ? p
+                : best,
+        undefined as PlayerStats | undefined
+    )?.player_id;
+
+    const TeamPanel = ({
+        team,
+        teamName,
+        isWinner,
+        accent,
+    }: {
+        team?: TeamData;
+        teamName: string;
+        isWinner: boolean;
+        accent: "cyan" | "violet";
+    }) => {
         if (!team) return null;
 
-        const sorted = [...team.players].sort((a, b) => {
-            const aK = parseInt(a.player_stats.Kills || "0"), aD = parseInt(a.player_stats.Deaths || "1");
-            const bK = parseInt(b.player_stats.Kills || "0"), bD = parseInt(b.player_stats.Deaths || "1");
-            return (bK / bD) - (aK / aD);
-        });
+        const sorted = [...team.players].sort(
+            (a, b) =>
+                parseInt(b.player_stats.Kills || "0") - parseInt(a.player_stats.Kills || "0")
+        );
+        const wash =
+            accent === "cyan" ? "rgba(0,229,255,0.07)" : "rgba(139,92,246,0.07)";
+        const dot = accent === "cyan" ? "#00E5FF" : "#8B5CF6";
 
         return (
-            <Card className={`overflow-hidden ${isWinner ? "border-green-500/40" : "border-border/50"}`}>
-                {/* Header */}
-                <div className={`flex items-center justify-between px-4 py-3 ${isWinner ? "bg-green-500/10" : "bg-secondary/20"}`}>
-                    <div className="flex items-center gap-2">
-                        {isWinner && <Trophy className="h-4 w-4 text-yellow-400" />}
-                        <span className="font-bold">{teamName}</span>
+            <div className="hud-glass relative overflow-hidden">
+                <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                        background: `radial-gradient(420px circle at 12% 0%, ${wash}, transparent 60%)`,
+                    }}
+                />
+                {/* Team header */}
+                <div className="relative flex items-center justify-between px-6 pb-3.5 pt-5">
+                    <div className="flex items-center gap-2.5">
+                        <span
+                            className="h-[9px] w-[9px] rounded-full"
+                            style={{ background: dot, boxShadow: `0 0 12px ${dot}` }}
+                        />
+                        <span className="text-base font-bold tracking-[0.04em]">{teamName}</span>
                     </div>
-                    <Badge className={isWinner ? "bg-green-500" : "bg-red-500/80"}>
-                        {isWinner ? "WINNER" : "LOSER"}
-                    </Badge>
+                    <span
+                        className={`font-mono text-[11px] tracking-[0.14em] ${
+                            isWinner ? "text-success" : "text-text-faint"
+                        }`}
+                    >
+                        {isWinner ? "WINNER" : "DEFEAT"}
+                    </span>
                 </div>
-
-                {/* Table Header */}
-                <div className="grid grid-cols-[auto_1fr_repeat(4,50px)] gap-2 px-4 py-2 bg-secondary/10 text-xs text-muted-foreground border-b border-border/30">
-                    <span className="w-6">#</span>
-                    <span>Player</span>
-                    <span className="text-center">K/D/A</span>
-                    <span className="text-center">K/D</span>
-                    <span className="text-center">HS%</span>
-                    <span className="text-center">MVP</span>
+                {/* Column heads */}
+                <div
+                    className={`${SCOREBOARD_GRID} relative border-b border-white/[0.07] px-5 py-2 font-mono text-[10px] tracking-[0.14em] text-text-faint`}
+                >
+                    <span>PLAYER</span>
+                    <span className="text-right text-cyan">K ▼</span>
+                    <span className="text-right">D</span>
+                    <span className="text-right">A</span>
+                    <span className="text-right">K/D</span>
+                    <span className="text-right">ADR</span>
+                    <span className="text-right">HS%</span>
                 </div>
+                {/* Rows */}
+                <div className="relative flex flex-col pb-1.5">
+                    {sorted.map((p) => {
+                        const k = parseInt(p.player_stats.Kills || "0");
+                        const d = parseInt(p.player_stats.Deaths || "0");
+                        const a = parseInt(p.player_stats.Assists || "0");
+                        const hsRaw = p.player_stats["Headshots %"];
+                        const hs = hsRaw
+                            ? parseInt(hsRaw)
+                            : k > 0
+                              ? Math.round((parseInt(p.player_stats.Headshots || "0") / k) * 100)
+                              : 0;
+                        const kd = d > 0 ? (k / d).toFixed(2) : k.toFixed(2);
+                        const adr = p.player_stats.ADR ?? "--";
+                        const isMvp = p.player_id === mvpId;
 
-                {/* Players */}
-                {sorted.map((p, i) => {
-                    const k = parseInt(p.player_stats.Kills || "0");
-                    const d = parseInt(p.player_stats.Deaths || "0");
-                    const a = parseInt(p.player_stats.Assists || "0");
-                    const hs = parseInt(p.player_stats.Headshots || "0");
-                    const kd = d > 0 ? (k / d).toFixed(2) : k.toFixed(2);
-                    const hsP = k > 0 ? Math.round((hs / k) * 100) : 0;
-                    const mvp = parseInt(p.player_stats.MVPs || "0");
-
-                    return (
-                        <div
-                            key={p.player_id}
-                            className={`grid grid-cols-[auto_1fr_repeat(4,50px)] gap-2 px-4 py-2.5 items-center border-b border-border/20 last:border-0 hover:bg-secondary/10 ${i === 0 ? "bg-[#ff5500]/5" : ""}`}
-                        >
-                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? "bg-[#ff5500] text-white" : "bg-secondary/50 text-muted-foreground"}`}>
-                                {i + 1}
-                            </span>
-                            <Link href={`/player/${p.nickname}`} className="font-medium hover:text-[#ff5500] truncate">
-                                {p.nickname}
+                        return (
+                            <Link
+                                key={p.player_id}
+                                href={`/player/${encodeURIComponent(p.nickname)}`}
+                                className={`${SCOREBOARD_GRID} items-center border-b border-white/[0.045] px-6 py-[11px] text-foreground transition-colors hover:bg-cyan/[0.05]`}
+                            >
+                                <div className="flex min-w-0 items-center gap-[11px] overflow-hidden">
+                                    <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full border border-white/[0.14] bg-[radial-gradient(circle_at_30%_30%,#1A2B33,#0C0F14)] font-mono text-[11px] font-bold text-white/85">
+                                        {p.nickname.slice(0, 2).toUpperCase()}
+                                    </div>
+                                    <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[13.5px] font-semibold">
+                                        {p.nickname}
+                                    </span>
+                                    {isMvp && (
+                                        <span
+                                            title="Match MVP"
+                                            className="flex flex-none items-center gap-1 rounded-full border border-orange/50 bg-orange/[0.09] px-2 py-[2px] font-mono text-[9px] font-bold tracking-[0.1em] text-orange-light shadow-[0_0_12px_rgba(255,85,0,0.25)]"
+                                        >
+                                            <Crown className="h-[10px] w-[10px]" />
+                                            MVP
+                                        </span>
+                                    )}
+                                </div>
+                                <span className="tabular text-right font-mono text-[13px] font-semibold">
+                                    {k}
+                                </span>
+                                <span className="tabular text-right font-mono text-[13px] text-muted-foreground">
+                                    {d}
+                                </span>
+                                <span className="tabular text-right font-mono text-[13px] text-muted-foreground">
+                                    {a}
+                                </span>
+                                <span
+                                    className={`tabular text-right font-mono text-[13px] ${
+                                        parseFloat(kd) >= 1 ? "text-success" : "text-danger"
+                                    }`}
+                                >
+                                    {kd}
+                                </span>
+                                <span className="tabular text-right font-mono text-[13px] text-text-bright">
+                                    {adr}
+                                </span>
+                                <span className="tabular text-right font-mono text-[13px] text-text-bright">
+                                    {hs}%
+                                </span>
                             </Link>
-                            <div className="text-center text-xs font-mono">
-                                <span className="text-green-400">{k}</span>
-                                <span className="text-muted-foreground">/</span>
-                                <span className="text-red-400">{d}</span>
-                                <span className="text-muted-foreground">/</span>
-                                <span className="text-blue-400">{a}</span>
-                            </div>
-                            <span className={`text-center text-sm font-bold ${parseFloat(kd) >= 1 ? "text-green-400" : "text-red-400"}`}>
-                                {kd}
-                            </span>
-                            <span className="text-center text-sm">{hsP}%</span>
-                            <span className="text-center text-sm">
-                                {mvp > 0 && <span className="text-yellow-400 flex items-center justify-center"><Star className="h-3 w-3 mr-0.5" />{mvp}</span>}
-                            </span>
-                        </div>
-                    );
-                })}
-            </Card>
+                        );
+                    })}
+                </div>
+            </div>
         );
     };
 
     return (
-        <div className="container mx-auto px-4 py-8">
+        <div className="mx-auto max-w-[1280px] px-5 py-[34px] sm:px-10">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="max-w-5xl mx-auto space-y-6"
+                className="space-y-[22px]"
             >
-                {/* Nav */}
-                <div className="flex items-center justify-between">
-                    <Button variant="ghost" size="sm" onClick={() => router.back()}>
-                        <ChevronLeft className="h-4 w-4 mr-1" />Back
-                    </Button>
-                    <a href={(() => { try { return decodeURIComponent(match.faceit_url).replace(/\/{lang}/g, ""); } catch { return match.faceit_url.replace(/\/{lang}/g, ""); } })()} target="_blank" rel="noopener noreferrer" className="text-[#ff5500] hover:underline text-sm flex items-center gap-1">
-                        Faceit <ExternalLink className="h-3 w-3" />
-                    </a>
-                </div>
+                {/* Back */}
+                <button
+                    onClick={() => router.back()}
+                    className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-cyan"
+                >
+                    <ChevronLeft className="h-4 w-4" />
+                    Back
+                </button>
 
-                {/* Score Header */}
-                <Card className="overflow-hidden border-[#ff5500]/30">
-                    <div className="p-6 bg-gradient-to-r from-[#ff5500]/5 via-transparent to-[#ff5500]/5">
-                        <div className="flex items-center justify-between">
-                            {/* Team 1 */}
-                            <div className="flex-1 text-center">
-                                <h2 className={`text-xl font-bold ${isTeam1Winner ? "text-green-400" : ""}`}>
-                                    {match.teams.faction1.nickname}
-                                </h2>
+                {/* Score header */}
+                <section className="relative overflow-hidden rounded-[24px] border border-white/[0.09] shadow-[0_8px_32px_rgba(0,0,0,0.55)]">
+                    <div
+                        aria-hidden
+                        className="absolute inset-0 bg-[linear-gradient(135deg,#24405266,#0B0F13),linear-gradient(180deg,rgba(7,7,8,0.2),rgba(7,7,8,0.92))]"
+                    />
+                    <div
+                        aria-hidden
+                        className="absolute inset-0 bg-[radial-gradient(600px_circle_at_20%_0%,rgba(0,229,255,0.10),transparent_60%)]"
+                    />
+                    <div className="relative grid grid-cols-1 items-center gap-6 px-6 py-[38px] sm:px-11 lg:grid-cols-[1fr_auto_1fr] lg:gap-[30px]">
+                        {/* Map info */}
+                        <div className="flex items-center gap-[18px]">
+                            <div
+                                className="flex h-[42px] w-16 items-center justify-center rounded-[9px] border border-white/[0.14] font-mono text-[11px] font-bold tracking-[0.08em] text-white/90"
+                                style={{ background: tile }}
+                            >
+                                {mapClean.slice(0, 3).toUpperCase()}
                             </div>
-
-                            {/* Score */}
-                            <div className="px-8">
-                                <div className="text-4xl font-black">
-                                    <span className={isTeam1Winner ? "text-green-400" : "text-red-400"}>
-                                        {score1}
-                                    </span>
-                                    <span className="text-muted-foreground/30 mx-3">:</span>
-                                    <span className={!isTeam1Winner ? "text-green-400" : "text-red-400"}>
-                                        {score2}
-                                    </span>
-                                </div>
-                                <div className="text-center mt-2">
-                                    <Badge variant="outline"><Target className="h-3 w-3 mr-1" />{mapName}</Badge>
-                                </div>
-                            </div>
-
-                            {/* Team 2 */}
-                            <div className="flex-1 text-center">
-                                <h2 className={`text-xl font-bold ${!isTeam1Winner ? "text-green-400" : ""}`}>
-                                    {match.teams.faction2.nickname}
-                                </h2>
+                            <div className="flex flex-col gap-1">
+                                <span className="text-2xl font-extrabold capitalize tracking-[-0.01em]">
+                                    {mapClean}
+                                </span>
+                                <span className="font-mono text-[11.5px] text-muted-foreground">
+                                    {dateMeta}
+                                </span>
                             </div>
                         </div>
 
-                        {/* Info */}
-                        <div className="flex items-center justify-center gap-4 mt-4 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDate(match.finished_at)}</span>
-                            <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatTime(match.started_at)}</span>
+                        {/* Score */}
+                        <div className="flex items-center justify-center gap-[22px]">
+                            <div className="flex flex-col items-center gap-[5px]">
+                                <span
+                                    className={`max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[10px] tracking-[0.2em] ${isTeam1Winner ? "text-cyan" : "text-muted-foreground"}`}
+                                >
+                                    {match.teams.faction1.nickname.toUpperCase()}
+                                </span>
+                                <span
+                                    className={`tabular font-mono text-[56px] font-bold leading-none ${
+                                        isTeam1Winner
+                                            ? "text-cyan [text-shadow:0_0_34px_rgba(0,229,255,0.55)]"
+                                            : "text-text-faint"
+                                    }`}
+                                >
+                                    {score1}
+                                </span>
+                                <span
+                                    className={`font-mono text-[10px] tracking-[0.16em] ${isTeam1Winner ? "text-success" : "text-text-faint"}`}
+                                >
+                                    {isTeam1Winner ? "WINNER" : "DEFEAT"}
+                                </span>
+                            </div>
+                            <span className="pb-3.5 font-mono text-[26px] text-text-faint">:</span>
+                            <div className="flex flex-col items-center gap-[5px]">
+                                <span
+                                    className={`max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[10px] tracking-[0.2em] ${!isTeam1Winner ? "text-cyan" : "text-muted-foreground"}`}
+                                >
+                                    {match.teams.faction2.nickname.toUpperCase()}
+                                </span>
+                                <span
+                                    className={`tabular font-mono text-[56px] font-bold leading-none ${
+                                        !isTeam1Winner
+                                            ? "text-cyan [text-shadow:0_0_34px_rgba(0,229,255,0.55)]"
+                                            : "text-text-faint"
+                                    }`}
+                                >
+                                    {score2}
+                                </span>
+                                <span
+                                    className={`font-mono text-[10px] tracking-[0.16em] ${!isTeam1Winner ? "text-success" : "text-text-faint"}`}
+                                >
+                                    {!isTeam1Winner ? "WINNER" : "DEFEAT"}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Faceit link — orange is part of the brand-mark exception */}
+                        <div className="flex lg:justify-end">
+                            <a
+                                href={faceitUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex h-[42px] items-center gap-[9px] rounded-xl border border-orange/55 bg-orange/[0.08] px-5 text-sm font-semibold text-orange-light transition-[box-shadow,background-color,color] duration-200 hover:bg-orange/[0.14] hover:text-[#FF9A66] hover:shadow-[0_0_22px_rgba(255,85,0,0.3)]"
+                            >
+                                Open on Faceit
+                                <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
                         </div>
                     </div>
-                </Card>
+                </section>
 
-                {/* Scoreboards */}
-                {round && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <Scoreboard team={team1} teamName={match.teams.faction1.nickname} isWinner={isTeam1Winner} />
-                        <Scoreboard team={team2} teamName={match.teams.faction2.nickname} isWinner={!isTeam1Winner} />
+                {/* Team scoreboards */}
+                {round ? (
+                    <div className="grid grid-cols-1 gap-[22px]">
+                        <TeamPanel
+                            team={team1}
+                            teamName={match.teams.faction1.nickname}
+                            isWinner={isTeam1Winner}
+                            accent="cyan"
+                        />
+                        <TeamPanel
+                            team={team2}
+                            teamName={match.teams.faction2.nickname}
+                            isWinner={!isTeam1Winner}
+                            accent="violet"
+                        />
+                    </div>
+                ) : (
+                    <div className="hud-glass p-8 text-center text-muted-foreground">
+                        Detailed scoreboard is not available for this match.
                     </div>
                 )}
             </motion.div>

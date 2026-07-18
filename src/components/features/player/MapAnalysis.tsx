@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, MapPin, TrendingUp, TrendingDown } from "lucide-react";
 
 interface MapAnalysisProps {
     playerId: string;
@@ -17,6 +15,24 @@ interface PlayerMapStat {
     avgKills: number;
     avgDeaths: number;
     avgKD: number;
+}
+
+// Radar geometry (design: 340x320 viewBox, 7 axes)
+const CX = 170;
+const CY = 158;
+const R = 108;
+
+function polar(i: number, n: number, r: number): [number, number] {
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+    return [CX + r * Math.cos(a), CY + r * Math.sin(a)];
+}
+
+function ringPoints(n: number, f: number): string {
+    return Array.from({ length: n }, (_, i) =>
+        polar(i, n, R * f)
+            .map((v) => v.toFixed(1))
+            .join(",")
+    ).join(" ");
 }
 
 export function MapAnalysis({ playerId }: MapAnalysisProps) {
@@ -45,155 +61,132 @@ export function MapAnalysis({ playerId }: MapAnalysisProps) {
         fetchStats();
     }, [playerId, matchCount]);
 
+    const header = (
+        <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-1">
+                <span className="font-mono text-[10px] tracking-[0.24em] text-muted-foreground">
+                    MAP ANALYSIS
+                </span>
+                <span className="text-[17px] font-bold">Win rate per map</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="font-mono text-[10px] text-text-faint">LAST</span>
+                <Select value={matchCount} onValueChange={setMatchCount}>
+                    <SelectTrigger className="h-7 w-[70px] text-xs">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+        </div>
+    );
+
     if (loading) {
         return (
-            <Card className="border-border/50 bg-card/50">
-                <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <MapPin className="h-5 w-5" />
-                        Map Statistics
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </CardContent>
-            </Card>
+            <section className="hud-glass flex flex-col px-7 py-[26px]">
+                {header}
+                <div className="hud-skeleton mx-auto my-8 h-[220px] w-[220px] rounded-full" />
+            </section>
         );
     }
 
-    if (mapStats.length === 0) {
+    // Top maps by play count, radar-ready
+    const sorted = [...mapStats].sort((a, b) => b.matches - a.matches);
+    const radarMaps = sorted.slice(0, 7);
+    const n = radarMaps.length;
+
+    if (n < 3) {
         return (
-            <Card className="border-border/50 bg-card/50">
-                <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <MapPin className="h-5 w-5" />
-                        Map Statistics
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center py-8">
-                    <span className="text-muted-foreground">No map statistics available</span>
-                </CardContent>
-            </Card>
+            <section className="hud-glass flex flex-col px-7 py-[26px]">
+                {header}
+                <div className="flex flex-1 items-center justify-center py-10">
+                    <span className="text-sm text-muted-foreground">
+                        Not enough map data yet
+                    </span>
+                </div>
+            </section>
         );
     }
 
-    // Sort by win rate and matches
-    const sortedStats = [...mapStats].sort((a, b) => {
-        if (b.matches !== a.matches && Math.abs(b.matches - a.matches) > 5) {
-            return b.matches - a.matches;
-        }
-        return b.winRate - a.winRate;
-    });
-
-    const bestMaps = sortedStats.filter((m) => m.winRate >= 55 && m.matches >= 2);
-    const worstMaps = sortedStats.filter((m) => m.winRate <= 45 && m.matches >= 2);
+    const radarPoly = radarMaps
+        .map((m, i) =>
+            polar(i, n, Math.max(R * (m.winRate / 100), 4))
+                .map((v) => v.toFixed(1))
+                .join(",")
+        )
+        .join(" ");
 
     return (
-        <Card className="border-border/50 bg-card/50">
-            <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <MapPin className="h-5 w-5" />
-                        Map Statistics
-                    </CardTitle>
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Last</span>
-                        <Select value={matchCount} onValueChange={setMatchCount}>
-                            <SelectTrigger className="w-[70px] h-7 text-xs">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="10">10</SelectItem>
-                                <SelectItem value="25">25</SelectItem>
-                                <SelectItem value="50">50</SelectItem>
-                                <SelectItem value="100">100</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <span className="text-xs text-muted-foreground">matches</span>
-                    </div>
-                </div>
-                {matchesAnalyzed > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                        Analyzed {matchesAnalyzed} matches
-                    </p>
-                )}
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {/* Best & Worst Maps Summary */}
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                        <div className="flex items-center gap-1 mb-2">
-                            <TrendingUp className="h-4 w-4 text-green-500" />
-                            <span className="text-xs text-green-400 font-medium">Best Maps</span>
-                        </div>
-                        <div className="space-y-1">
-                            {bestMaps.length > 0 ? (
-                                bestMaps.slice(0, 3).map((m) => (
-                                    <div key={m.map} className="flex justify-between text-sm">
-                                        <span className="text-foreground">{m.map.replace("de_", "")}</span>
-                                        <span className="text-green-400">{m.winRate.toFixed(0)}%</span>
-                                    </div>
-                                ))
-                            ) : (
-                                <span className="text-xs text-muted-foreground">Not enough data</span>
-                            )}
-                        </div>
-                    </div>
-                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                        <div className="flex items-center gap-1 mb-2">
-                            <TrendingDown className="h-4 w-4 text-red-500" />
-                            <span className="text-xs text-red-400 font-medium">Worst Maps</span>
-                        </div>
-                        <div className="space-y-1">
-                            {worstMaps.length > 0 ? (
-                                worstMaps.slice(0, 3).map((m) => (
-                                    <div key={m.map} className="flex justify-between text-sm">
-                                        <span className="text-foreground">{m.map.replace("de_", "")}</span>
-                                        <span className="text-red-400">{m.winRate.toFixed(0)}%</span>
-                                    </div>
-                                ))
-                            ) : (
-                                <span className="text-xs text-muted-foreground">Not enough data</span>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* All Maps Table */}
-                <div className="border-t border-border/30 pt-3">
-                    <div className="grid grid-cols-[1fr_60px_60px_60px_60px] gap-2 text-xs text-muted-foreground font-medium border-b border-border/20 pb-2">
-                        <span>Map</span>
-                        <span className="text-center">Games</span>
-                        <span className="text-center">Win%</span>
-                        <span className="text-center">K/D</span>
-                        <span className="text-center">Kills</span>
-                    </div>
-                    <div className="space-y-1 mt-2">
-                        {sortedStats.slice(0, 7).map((stat) => (
-                            <div
-                                key={stat.map}
-                                className="grid grid-cols-[1fr_60px_60px_60px_60px] gap-2 text-sm items-center py-1"
+        <section className="hud-glass flex flex-col px-7 py-[26px]">
+            {header}
+            <svg viewBox="0 0 340 320" className="mx-auto mt-2 block w-full max-w-[340px]">
+                {/* Rings */}
+                <g fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1">
+                    <polygon points={ringPoints(n, 1)} />
+                    <polygon points={ringPoints(n, 2 / 3)} />
+                    <polygon points={ringPoints(n, 1 / 3)} />
+                </g>
+                {/* Axes */}
+                <g stroke="rgba(255,255,255,0.06)" strokeWidth="1">
+                    {radarMaps.map((m, i) => {
+                        const [x, y] = polar(i, n, R);
+                        return <line key={m.map} x1={CX} y1={CY} x2={x} y2={y} />;
+                    })}
+                </g>
+                {/* Data polygon: violet fill + cyan dashed edge */}
+                <polygon
+                    points={radarPoly}
+                    fill="rgba(139,92,246,0.18)"
+                    stroke="#8B5CF6"
+                    strokeWidth="2"
+                />
+                <polygon
+                    points={radarPoly}
+                    fill="none"
+                    stroke="rgba(0,229,255,0.55)"
+                    strokeWidth="1"
+                    strokeDasharray="2 4"
+                />
+                {/* Labels */}
+                {radarMaps.map((m, i) => {
+                    const [lx, ly] = polar(i, n, R + 30);
+                    return (
+                        <g key={m.map}>
+                            <text
+                                x={lx.toFixed(1)}
+                                y={(ly + 1).toFixed(1)}
+                                textAnchor="middle"
+                                fill="#8A93A0"
+                                fontSize="11"
+                                fontFamily="var(--font-geist-mono), monospace"
                             >
-                                <span className="font-medium">{stat.map.replace("de_", "")}</span>
-                                <span className="text-center text-muted-foreground">{stat.matches}</span>
-                                <span className={`text-center font-medium ${stat.winRate >= 55 ? "text-green-400" :
-                                    stat.winRate <= 45 ? "text-red-400" : "text-foreground"
-                                    }`}>
-                                    {stat.winRate.toFixed(0)}%
-                                </span>
-                                <span className={`text-center ${stat.avgKD >= 1.2 ? "text-green-400" :
-                                    stat.avgKD <= 0.9 ? "text-red-400" : "text-foreground"
-                                    }`}>
-                                    {stat.avgKD.toFixed(2)}
-                                </span>
-                                <span className="text-center text-muted-foreground">
-                                    {stat.avgKills.toFixed(1)}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
+                                {m.map.replace("de_", "").toUpperCase()}
+                            </text>
+                            <text
+                                x={lx.toFixed(1)}
+                                y={(ly + 15).toFixed(1)}
+                                textAnchor="middle"
+                                fill="#00E5FF"
+                                fontSize="10.5"
+                                fontWeight="600"
+                                fontFamily="var(--font-geist-mono), monospace"
+                            >
+                                {m.winRate.toFixed(0)}%
+                            </text>
+                        </g>
+                    );
+                })}
+            </svg>
+            {matchesAnalyzed > 0 && (
+                <span className="mt-1 text-center font-mono text-[11px] text-text-faint">
+                    {matchesAnalyzed} MATCHES ANALYZED
+                </span>
+            )}
+        </section>
     );
 }

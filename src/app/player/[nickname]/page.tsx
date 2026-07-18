@@ -3,7 +3,6 @@ import { PlayerHeader } from "@/components/features/player/PlayerHeader";
 import { StatsGrid } from "@/components/features/player/StatsGrid";
 import { EloChart } from "@/components/features/player/EloChart";
 import { MapAnalysis } from "@/components/features/player/MapAnalysis";
-import { RadarStatsChart } from "@/components/features/player/RadarStatsChart";
 import { MatchList } from "@/components/features/match/MatchList";
 import { LiveMatch } from "@/components/features/match/LiveMatch";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,7 +49,16 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8 space-y-6">
+        <div className="relative mx-auto max-w-[1280px] space-y-[22px] px-5 py-[34px] sm:px-10">
+            {/* Ambient glows */}
+            <div
+                aria-hidden
+                className="pointer-events-none absolute -left-[140px] -top-[260px] -z-10 h-[640px] w-[820px] bg-[radial-gradient(closest-side,rgba(0,229,255,0.08),transparent_70%)]"
+            />
+            <div
+                aria-hidden
+                className="pointer-events-none absolute -right-[220px] top-[340px] -z-10 h-[700px] w-[700px] bg-[radial-gradient(closest-side,rgba(139,92,246,0.09),transparent_70%)]"
+            />
             {/* Live Match (if in game) */}
             <LiveMatch playerId={player.player_id} playerNickname={player.nickname} />
 
@@ -60,15 +68,9 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
             {/* Stats Grid */}
             {stats && <StatsGrid stats={stats} />}
 
-            {/* Three Column Layout for Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* ELO History Chart */}
+            {/* Elo history + map radar (design: 1.9fr / 1fr) */}
+            <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[1.9fr_1fr]">
                 <EloChart playerId={player.player_id} playerNickname={player.nickname} />
-
-                {/* Radar Stats Chart */}
-                <RadarStatsChart playerId={player.player_id} stats={stats?.lifetime} />
-
-                {/* Map Analysis */}
                 <MapAnalysis playerId={player.player_id} />
             </div>
 
