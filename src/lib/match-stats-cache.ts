@@ -13,24 +13,21 @@ import { getMatchDetails, getMatchStats, type FaceitMatchStats } from "@/lib/api
  * already knows the match status (e.g. from a history item); otherwise the
  * cache verifies the status itself with one extra call on a cache miss.
  */
-export async function getMatchStatsCached(
-    matchId: string,
-    finishedHint?: boolean
-): Promise<FaceitMatchStats> {
-    // Read path — any DB error falls through to a live fetch.
+
+async function readCachedPayload(matchId: string): Promise<string | null> {
+    // Any DB error is treated as a miss — the caller falls back to a live fetch.
     try {
         const cached = await prisma.matchStatsCache.findUnique({ where: { matchId } });
-        if (cached) {
-            try {
-                return JSON.parse(cached.payload) as FaceitMatchStats;
-            } catch {
-                // Corrupt payload — treat as a miss and refetch/overwrite below.
-            }
-        }
+        return cached?.payload ?? null;
     } catch {
-        // DB unavailable — fall through to live fetch.
+        return null;
     }
+}
 
+async function fetchAndMaybeStore(
+    matchId: string,
+    finishedHint?: boolean
+): Promise<{ stats: FaceitMatchStats; payload: string }> {
     const stats = await getMatchStats(matchId);
 
     // Verify the match is actually FINISHED before writing. rounds.length alone
@@ -42,12 +39,13 @@ export async function getMatchStatsCached(
             .catch(() => false);
     }
 
+    const payload = JSON.stringify(stats);
+
     // ponytail: finished-but-empty payloads are deliberately NOT cached — a
     // transient API glitch returning {rounds: []} would otherwise be served
     // forever. Refetching those rare matches is the cheaper failure mode.
     if (finished && stats?.rounds?.length) {
         try {
-            const payload = JSON.stringify(stats);
             await prisma.matchStatsCache.upsert({
                 where: { matchId },
                 create: { matchId, payload },
@@ -58,5 +56,37 @@ export async function getMatchStatsCached(
         }
     }
 
-    return stats;
+    return { stats, payload };
+}
+
+export async function getMatchStatsCached(
+    matchId: string,
+    finishedHint?: boolean
+): Promise<FaceitMatchStats> {
+    const cached = await readCachedPayload(matchId);
+    if (cached) {
+        try {
+            return JSON.parse(cached) as FaceitMatchStats;
+        } catch {
+            // Corrupt payload — treat as a miss and refetch/overwrite below.
+        }
+    }
+    return (await fetchAndMaybeStore(matchId, finishedHint)).stats;
+}
+
+/**
+ * Raw-string variant for API routes: a cache hit returns the stored JSON
+ * string as-is, so ~100KB payloads are not parsed and re-stringified on
+ * every response. Payloads are our own JSON.stringify output, so they are
+ * trusted without re-validation.
+ */
+export async function getMatchStatsCachedRaw(
+    matchId: string,
+    finishedHint?: boolean
+): Promise<string> {
+    const cached = await readCachedPayload(matchId);
+    if (cached) {
+        return cached;
+    }
+    return (await fetchAndMaybeStore(matchId, finishedHint)).payload;
 }

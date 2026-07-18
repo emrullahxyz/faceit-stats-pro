@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMatchStatsCached } from "@/lib/match-stats-cache";
+import { getMatchStatsCachedRaw } from "@/lib/match-stats-cache";
 import { isValidMatchId } from "@/lib/validation";
 
 export async function GET(
@@ -16,9 +16,14 @@ export async function GET(
             );
         }
 
-        const stats = await getMatchStatsCached(matchId);
-        return NextResponse.json(stats, {
-            headers: { "Cache-Control": "private, max-age=3600" },
+        // Raw string variant: a cache hit streams the stored JSON without a
+        // ~100KB parse + re-stringify round trip per request.
+        const payload = await getMatchStatsCachedRaw(matchId);
+        return new NextResponse(payload, {
+            headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "private, max-age=3600",
+            },
         });
     } catch (error) {
         console.error("Failed to fetch match stats:", error);
