@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
     XAxis,
     YAxis,
@@ -23,31 +23,22 @@ interface EloDataPoint {
 }
 
 export function EloChart({ playerId, playerNickname }: EloChartProps) {
-    const [eloHistory, setEloHistory] = useState<EloDataPoint[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        async function fetchEloHistory() {
-            try {
-                setLoading(true);
-                const response = await fetch(`/api/elo-history/${playerId}`);
-                if (!response.ok) {
-                    throw new Error("Failed to fetch ELO history");
-                }
-                const data = await response.json();
-                setEloHistory(data.items || []);
-            } catch (err) {
-                setError(err instanceof Error ? err.message : "Failed to load ELO history");
-            } finally {
-                setLoading(false);
+    const {
+        data: eloHistory = [],
+        isLoading: loading,
+        error,
+    } = useQuery({
+        queryKey: ["elo-history", playerId],
+        enabled: !!playerId,
+        queryFn: async (): Promise<EloDataPoint[]> => {
+            const response = await fetch(`/api/elo-history/${playerId}`);
+            if (!response.ok) {
+                throw new Error("Elo geçmişi yüklenemedi.");
             }
-        }
-
-        if (playerId) {
-            fetchEloHistory();
-        }
-    }, [playerId]);
+            const data = await response.json();
+            return data.items || [];
+        },
+    });
 
     const header = (
         <div className="flex flex-col gap-1">
@@ -78,7 +69,7 @@ export function EloChart({ playerId, playerNickname }: EloChartProps) {
                 {header}
                 <div className="flex items-center justify-center py-12">
                     <span className="text-muted-foreground">
-                        {error || "No ELO history available"}
+                        {error ? error.message : "No ELO history available"}
                     </span>
                 </div>
             </section>

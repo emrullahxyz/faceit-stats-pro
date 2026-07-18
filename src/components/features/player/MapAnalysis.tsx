@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface MapAnalysisProps {
@@ -36,30 +37,23 @@ function ringPoints(n: number, f: number): string {
 }
 
 export function MapAnalysis({ playerId }: MapAnalysisProps) {
-    const [loading, setLoading] = useState(true);
-    const [mapStats, setMapStats] = useState<PlayerMapStat[]>([]);
     const [matchCount, setMatchCount] = useState<string>("25");
-    const [matchesAnalyzed, setMatchesAnalyzed] = useState(0);
 
-    useEffect(() => {
-        async function fetchStats() {
-            try {
-                setLoading(true);
-                const response = await fetch(`/api/map-stats/${playerId}?limit=${matchCount}`);
-                const data = await response.json();
-                if (data.mapStats) {
-                    setMapStats(data.mapStats);
-                    setMatchesAnalyzed(data.matchesAnalyzed || 0);
-                }
-            } catch (error) {
-                console.error("Error fetching map stats:", error);
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        fetchStats();
-    }, [playerId, matchCount]);
+    // react-query caches per (player, limit), so flipping the LAST select back
+    // to an already-loaded window renders instantly instead of refetching.
+    const { data, isLoading: loading } = useQuery({
+        queryKey: ["map-stats", playerId, matchCount],
+        queryFn: async (): Promise<{ mapStats: PlayerMapStat[]; matchesAnalyzed: number }> => {
+            const response = await fetch(`/api/map-stats/${playerId}?limit=${matchCount}`);
+            const json = await response.json();
+            return {
+                mapStats: json.mapStats || [],
+                matchesAnalyzed: json.matchesAnalyzed || 0,
+            };
+        },
+    });
+    const mapStats = data?.mapStats ?? [];
+    const matchesAnalyzed = data?.matchesAnalyzed ?? 0;
 
     const header = (
         <div className="flex items-start justify-between gap-3">
