@@ -14,7 +14,7 @@ CS2 oyuncuları için Faceit istatistik/analiz uygulaması. Next.js 16 (App Rout
 - `src/app/api/*/route.ts` — tüm Faceit API erişimi buradan geçer; client doğrudan dış API çağırmaz. Yeni endpoint yazarken **api-route skill'ini** izle (key rotasyonu, validation, cache, 429 kalıbı).
 - `src/lib/api-keys.ts` — Faceit key rotasyonu + per-key cooldown. Key'leri asla doğrudan `process.env`'den okuma, asla client'a/loga sızdırma.
 - `src/lib/validation.ts` — tüm dinamik route paramları buradaki validatorlardan geçer.
-- `src/lib/error-handling.ts` — AppError sınıfları, `fetchWithTimeout`, `retryWithBackoff`, Türkçe `ERROR_MESSAGES`.
+- `src/lib/error-handling.ts` — Türkçe `ERROR_MESSAGES` + `getUserFriendlyMessage` (axios hatası → kullanıcı mesajı); action'lar ham hata mesajı döndürmez.
 - `src/lib/match-stats-cache.ts` — biten maç istatistikleri Prisma üzerinden kalıcı cache'lenir.
 - `src/components/{ui,features,layout}` — ui: shadcn yapı taşları (kebab-case), features: domain bileşenleri (PascalCase). Yeni bileşen için **new-component skill'i** var.
 

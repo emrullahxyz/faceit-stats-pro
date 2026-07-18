@@ -16,6 +16,7 @@ import {
     type PlayerMapStats,
 } from "@/lib/api";
 import { getMatchStatsCached } from "@/lib/match-stats-cache";
+import { getUserFriendlyMessage, ERROR_MESSAGES } from "@/lib/error-handling";
 
 // The central faceitApi client stamps the active key on every request, so
 // actions don't fetch or forward API keys; a missing key surfaces as a thrown
@@ -37,7 +38,7 @@ export async function fetchPlayerData(nickname: string): Promise<{
                 player,
                 stats: null,
                 matches: null,
-                error: "Player has no CS2 or CSGO data on Faceit.",
+                error: "Oyuncunun Faceit'te CS2 veya CSGO verisi yok.",
             };
         }
 
@@ -53,23 +54,11 @@ export async function fetchPlayerData(nickname: string): Promise<{
             error: null,
         };
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Failed to fetch player data";
-
-        // Check for 404 (player not found)
-        if (message.includes("404") || message.includes("not found")) {
-            return {
-                player: null,
-                stats: null,
-                matches: null,
-                error: `Player "${nickname}" not found on Faceit.`,
-            };
-        }
-
         return {
             player: null,
             stats: null,
             matches: null,
-            error: message,
+            error: getUserFriendlyMessage(error, `"${nickname}" adlı oyuncu Faceit'te bulunamadı.`),
         };
     }
 }
@@ -83,8 +72,7 @@ export async function fetchMatchDetails(matchId: string): Promise<{
         const match = await getMatchDetails(matchId);
         return { match, error: null };
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Failed to fetch match";
-        return { match: null, error: message };
+        return { match: null, error: getUserFriendlyMessage(error, ERROR_MESSAGES.MATCH_NOT_FOUND) };
     }
 }
 
@@ -104,8 +92,11 @@ export async function fetchMatchWithStats(matchId: string): Promise<{
         ).catch(() => null);
         return { match, stats, error: null };
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Failed to fetch match";
-        return { match: null, stats: null, error: message };
+        return {
+            match: null,
+            stats: null,
+            error: getUserFriendlyMessage(error, ERROR_MESSAGES.MATCH_NOT_FOUND),
+        };
     }
 }
 
@@ -122,10 +113,10 @@ export async function comparePlayersAction(nickname1: string, nickname2: string)
         ]);
 
         if (data1.error) {
-            return { player1: null, player2: null, error: `Player 1: ${data1.error}` };
+            return { player1: null, player2: null, error: `1. oyuncu: ${data1.error}` };
         }
         if (data2.error) {
-            return { player1: null, player2: null, error: `Player 2: ${data2.error}` };
+            return { player1: null, player2: null, error: `2. oyuncu: ${data2.error}` };
         }
 
         return {
@@ -134,8 +125,7 @@ export async function comparePlayersAction(nickname1: string, nickname2: string)
             error: null,
         };
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Comparison failed";
-        return { player1: null, player2: null, error: message };
+        return { player1: null, player2: null, error: getUserFriendlyMessage(error) };
     }
 }
 
@@ -175,7 +165,7 @@ export async function findSharedMatches(
                 player2Nickname: player2.nickname,
                 checkedCounts: { player1: 0, player2: 0 },
                 partial: false,
-                error: "One or both players have no CS data.",
+                error: "Oyunculardan birinin (veya ikisinin) CS verisi yok.",
             };
         }
 
@@ -264,14 +254,13 @@ export async function findSharedMatches(
             error: null,
         };
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Failed to find shared matches";
         return {
             sharedMatches: [],
             player1Nickname: "",
             player2Nickname: "",
             checkedCounts: { player1: 0, player2: 0 },
             partial: false,
-            error: message,
+            error: getUserFriendlyMessage(error, ERROR_MESSAGES.PLAYER_NOT_FOUND),
         };
     }
 }
@@ -285,8 +274,7 @@ export async function checkPlayerLiveMatch(playerId: string): Promise<{
         const match = await getPlayerOngoingMatch(playerId);
         return { match, error: null };
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Failed to check live match";
-        return { match: null, error: message };
+        return { match: null, error: getUserFriendlyMessage(error) };
     }
 }
 
@@ -299,8 +287,7 @@ export async function fetchPlayerMapStats(playerId: string): Promise<{
         const mapStats = await getPlayerMapStats(playerId, 50);
         return { mapStats, error: null };
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Failed to fetch map stats";
-        return { mapStats: [], error: message };
+        return { mapStats: [], error: getUserFriendlyMessage(error) };
     }
 }
 
@@ -326,7 +313,6 @@ export async function fetchTeamAnalysis(players: { player_id: string; nickname: 
         );
         return { teamStats, error: null };
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Failed to fetch team analysis";
-        return { teamStats: [], error: message };
+        return { teamStats: [], error: getUserFriendlyMessage(error) };
     }
 }
