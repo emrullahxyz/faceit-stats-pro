@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getActiveApiKey } from "@/lib/api-keys";
 import { getPlayerMatchHistory } from "@/lib/api";
 import { getMatchStatsCached } from "@/lib/match-stats-cache";
 import { isValidPlayerId } from "@/lib/validation";
@@ -36,13 +35,6 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ playerId: string }> }
 ) {
-    let FACEIT_API_KEY: string;
-    try {
-        FACEIT_API_KEY = getActiveApiKey();
-    } catch {
-        return NextResponse.json({ mapStats: [], error: "API key not configured" });
-    }
-
     try {
         const { playerId } = await params;
 
@@ -61,7 +53,7 @@ export async function GET(
         // are handled by the shared interceptors — no manual handling here.
         let matches: MatchItem[];
         try {
-            const historyData = await getPlayerMatchHistory(playerId, "cs2", FACEIT_API_KEY, matchCount);
+            const historyData = await getPlayerMatchHistory(playerId, "cs2", matchCount);
             matches = (historyData?.items || []) as unknown as MatchItem[];
         } catch {
             return NextResponse.json({ mapStats: [], error: "Failed to fetch match history" });
@@ -83,11 +75,7 @@ export async function GET(
                     const finished = match.status
                         ? match.status === "FINISHED"
                         : match.finished_at > 0;
-                    const statsData = await getMatchStatsCached(
-                        match.match_id,
-                        FACEIT_API_KEY,
-                        finished
-                    );
+                    const statsData = await getMatchStatsCached(match.match_id, finished);
                     const round = statsData?.rounds?.[0];
                     const mapName = round?.round_stats?.Map;
 

@@ -15,7 +15,6 @@ import { getMatchDetails, getMatchStats, type FaceitMatchStats } from "@/lib/api
  */
 export async function getMatchStatsCached(
     matchId: string,
-    apiKey: string,
     finishedHint?: boolean
 ): Promise<FaceitMatchStats> {
     // Read path — any DB error falls through to a live fetch.
@@ -32,13 +31,13 @@ export async function getMatchStatsCached(
         // DB unavailable — fall through to live fetch.
     }
 
-    const stats = await getMatchStats(matchId, apiKey);
+    const stats = await getMatchStats(matchId);
 
     // Verify the match is actually FINISHED before writing. rounds.length alone
     // is not enough: an ongoing BO3 already has rounds for its completed maps.
     let finished = finishedHint;
     if (finished === undefined && stats?.rounds?.length) {
-        finished = await getMatchDetails(matchId, apiKey)
+        finished = await getMatchDetails(matchId)
             .then((m) => m.status === "FINISHED")
             .catch(() => false);
     }

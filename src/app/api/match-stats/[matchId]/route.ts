@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMatchStatsCached } from "@/lib/match-stats-cache";
 import { isValidMatchId } from "@/lib/validation";
-import { getActiveApiKey } from "@/lib/api-keys";
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ matchId: string }> }
 ) {
-    let FACEIT_API_KEY: string;
-    try {
-        FACEIT_API_KEY = getActiveApiKey();
-    } catch {
-        return NextResponse.json({ error: "API key not configured" }, { status: 500 });
-    }
-
     try {
         const { matchId } = await params;
 
@@ -24,7 +16,7 @@ export async function GET(
             );
         }
 
-        const stats = await getMatchStatsCached(matchId, FACEIT_API_KEY);
+        const stats = await getMatchStatsCached(matchId);
         return NextResponse.json(stats, {
             headers: { "Cache-Control": "private, max-age=3600" },
         });

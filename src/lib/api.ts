@@ -210,14 +210,6 @@ export interface FaceitMatchHistory {
     end: number;
 }
 
-export interface FaceitEloHistory {
-    items: Array<{
-        elo: number;
-        date: string;
-        match_id: string;
-    }>;
-}
-
 // Search players - case insensitive
 export interface FaceitSearchResult {
     items: Array<{
@@ -233,26 +225,24 @@ export interface FaceitSearchResult {
     }>;
 }
 
-export async function searchPlayers(nickname: string, apiKey: string): Promise<FaceitSearchResult> {
+// The request interceptor stamps the freshest unblocked key on every request,
+// so API functions do not take (or forward) an apiKey parameter.
+export async function searchPlayers(nickname: string): Promise<FaceitSearchResult> {
     const response = await faceitApi.get(`/search/players`, {
         params: { nickname, limit: 5 },
-        headers: { Authorization: `Bearer ${apiKey}` },
     });
     return response.data;
 }
 
 // API Functions
-export async function getPlayerByNickname(nickname: string, apiKey: string): Promise<FaceitPlayer> {
+export async function getPlayerByNickname(nickname: string): Promise<FaceitPlayer> {
     try {
         // First try exact match
-        const response = await faceitApi.get(`/players`, {
-            params: { nickname },
-            headers: { Authorization: `Bearer ${apiKey}` },
-        });
+        const response = await faceitApi.get(`/players`, { params: { nickname } });
         return response.data;
     } catch (error) {
         // If exact match fails, try case-insensitive search
-        const searchResults = await searchPlayers(nickname, apiKey);
+        const searchResults = await searchPlayers(nickname);
 
         if (searchResults.items && searchResults.items.length > 0) {
             // Find exact case-insensitive match
@@ -264,7 +254,6 @@ export async function getPlayerByNickname(nickname: string, apiKey: string): Pro
                 // Fetch full player data with correct nickname
                 const response = await faceitApi.get(`/players`, {
                     params: { nickname: exactMatch.nickname },
-                    headers: { Authorization: `Bearer ${apiKey}` },
                 });
                 return response.data;
             }
@@ -275,56 +264,25 @@ export async function getPlayerByNickname(nickname: string, apiKey: string): Pro
     }
 }
 
-export async function getPlayerStats(playerId: string, gameId: string, apiKey: string): Promise<FaceitPlayerStats> {
-    const response = await faceitApi.get(`/players/${playerId}/stats/${gameId}`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-    });
+export async function getPlayerStats(playerId: string, gameId: string): Promise<FaceitPlayerStats> {
+    const response = await faceitApi.get(`/players/${playerId}/stats/${gameId}`);
     return response.data;
-}
-
-export async function getPlayerEloHistory(
-    playerId: string,
-    gameId: string,
-    apiKey: string,
-    limit: number = 100
-): Promise<FaceitEloHistory> {
-    const response = await faceitApi.get(`/players/${playerId}/history`, {
-        params: { game: gameId, limit },
-        headers: { Authorization: `Bearer ${apiKey}` },
-    });
-
-    // Note: Faceit's /players/{id}/history endpoint does NOT return elo field.
-    // The elo field is only available through the internal/unofficial API.
-    // We extract what we can and filter out zero-elo entries.
-    const items = response.data.items
-        .map((match: { match_id: string; finished_at: number; elo?: number }) => ({
-            match_id: match.match_id,
-            date: new Date(match.finished_at * 1000).toISOString().split('T')[0],
-            elo: match.elo ?? 0,
-        }))
-        .filter((item: { elo: number }) => item.elo > 0);
-
-    return { items: items.reverse() }; // Reverse to show oldest first (chronological)
 }
 
 export async function getPlayerMatchHistory(
     playerId: string,
     gameId: string,
-    apiKey: string,
     limit: number = 20,
     offset: number = 0
 ): Promise<FaceitMatchHistory> {
     const response = await faceitApi.get(`/players/${playerId}/history`, {
         params: { game: gameId, limit, offset },
-        headers: { Authorization: `Bearer ${apiKey}` },
     });
     return response.data;
 }
 
-export async function getMatchDetails(matchId: string, apiKey: string): Promise<FaceitMatch> {
-    const response = await faceitApi.get(`/matches/${matchId}`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-    });
+export async function getMatchDetails(matchId: string): Promise<FaceitMatch> {
+    const response = await faceitApi.get(`/matches/${matchId}`);
     return response.data;
 }
 
@@ -364,10 +322,8 @@ export interface FaceitMatchStats {
     }>;
 }
 
-export async function getMatchStats(matchId: string, apiKey: string): Promise<FaceitMatchStats> {
-    const response = await faceitApi.get(`/matches/${matchId}/stats`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-    });
+export async function getMatchStats(matchId: string): Promise<FaceitMatchStats> {
+    const response = await faceitApi.get(`/matches/${matchId}/stats`);
     return response.data;
 }
 
@@ -400,12 +356,11 @@ export interface FaceitOngoingMatch {
     faceit_url: string;
 }
 
-export async function getPlayerOngoingMatch(playerId: string, apiKey: string): Promise<FaceitOngoingMatch | null> {
+export async function getPlayerOngoingMatch(playerId: string): Promise<FaceitOngoingMatch | null> {
     try {
         // Check player's recent matches to find ongoing one
         const response = await faceitApi.get(`/players/${playerId}/history`, {
             params: { game: "cs2", limit: 1, offset: 0 },
-            headers: { Authorization: `Bearer ${apiKey}` },
         });
 
         if (response.data.items && response.data.items.length > 0) {
@@ -413,9 +368,7 @@ export async function getPlayerOngoingMatch(playerId: string, apiKey: string): P
             // Check if match is ongoing (no finished_at or status is not finished)
             if (!latestMatch.finished_at || latestMatch.status === "ONGOING" || latestMatch.status === "READY" || latestMatch.status === "VOTING" || latestMatch.status === "CONFIGURING") {
                 // Fetch full match details
-                const matchDetails = await faceitApi.get(`/matches/${latestMatch.match_id}`, {
-                    headers: { Authorization: `Bearer ${apiKey}` },
-                });
+                const matchDetails = await faceitApi.get(`/matches/${latestMatch.match_id}`);
                 if (matchDetails.data.status !== "FINISHED" && matchDetails.data.status !== "CANCELLED") {
                     return matchDetails.data;
                 }
@@ -439,12 +392,11 @@ export interface PlayerMapStats {
     avgKD: number;
 }
 
-export async function getPlayerMapStats(playerId: string, apiKey: string, limit: number = 50): Promise<PlayerMapStats[]> {
+export async function getPlayerMapStats(playerId: string, limit: number = 50): Promise<PlayerMapStats[]> {
     try {
         // Fetch match history
         const response = await faceitApi.get(`/players/${playerId}/history`, {
             params: { game: "cs2", limit },
-            headers: { Authorization: `Bearer ${apiKey}` },
         });
 
         const matches = response.data?.items || [];
@@ -505,24 +457,5 @@ export async function getPlayerMapStats(playerId: string, apiKey: string, limit:
         console.error("Error fetching player map stats:", error);
         return [];
     }
-}
-
-// Get team map statistics (for opponent analysis)
-export async function getTeamMapStats(players: FaceitMatchPlayer[], apiKey: string): Promise<{
-    playerId: string;
-    nickname: string;
-    mapStats: PlayerMapStats[];
-}[]> {
-    const results = await Promise.all(
-        players.map(async (player) => {
-            const mapStats = await getPlayerMapStats(player.player_id, apiKey, 30);
-            return {
-                playerId: player.player_id,
-                nickname: player.nickname,
-                mapStats,
-            };
-        })
-    );
-    return results;
 }
 

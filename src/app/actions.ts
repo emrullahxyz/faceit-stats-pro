@@ -16,26 +16,18 @@ import {
     type PlayerMapStats,
 } from "@/lib/api";
 import { getMatchStatsCached } from "@/lib/match-stats-cache";
-import { getActiveApiKey } from "@/lib/api-keys";
 
+// The central faceitApi client stamps the active key on every request, so
+// actions don't fetch or forward API keys; a missing key surfaces as a thrown
+// error caught by each action's catch block.
 export async function fetchPlayerData(nickname: string): Promise<{
     player: FaceitPlayer | null;
     stats: FaceitPlayerStats | null;
     matches: FaceitMatchHistory | null;
     error: string | null;
 }> {
-    const FACEIT_API_KEY = getActiveApiKey();
-    if (!FACEIT_API_KEY) {
-        return {
-            player: null,
-            stats: null,
-            matches: null,
-            error: "API key not configured. Please set FACEIT_API_KEY environment variable.",
-        };
-    }
-
     try {
-        const player = await getPlayerByNickname(nickname, FACEIT_API_KEY);
+        const player = await getPlayerByNickname(nickname);
 
         // Determine which game to fetch stats for (CS2 preferred, fallback to CSGO)
         const gameId = player.games?.cs2 ? "cs2" : player.games?.csgo ? "csgo" : null;
@@ -50,8 +42,8 @@ export async function fetchPlayerData(nickname: string): Promise<{
         }
 
         const [stats, matches] = await Promise.all([
-            getPlayerStats(player.player_id, gameId, FACEIT_API_KEY).catch(() => null),
-            getPlayerMatchHistory(player.player_id, gameId, FACEIT_API_KEY, 20).catch(() => null),
+            getPlayerStats(player.player_id, gameId).catch(() => null),
+            getPlayerMatchHistory(player.player_id, gameId, 20).catch(() => null),
         ]);
 
         return {
@@ -87,13 +79,8 @@ export async function fetchMatchDetails(matchId: string): Promise<{
     match: FaceitMatch | null;
     error: string | null;
 }> {
-    const FACEIT_API_KEY = getActiveApiKey();
-    if (!FACEIT_API_KEY) {
-        return { match: null, error: "API key not configured." };
-    }
-
     try {
-        const match = await getMatchDetails(matchId, FACEIT_API_KEY);
+        const match = await getMatchDetails(matchId);
         return { match, error: null };
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Failed to fetch match";
@@ -107,18 +94,12 @@ export async function fetchMatchWithStats(matchId: string): Promise<{
     stats: FaceitMatchStats | null;
     error: string | null;
 }> {
-    const FACEIT_API_KEY = getActiveApiKey();
-    if (!FACEIT_API_KEY) {
-        return { match: null, stats: null, error: "API key not configured." };
-    }
-
     try {
         // Match first so the cache gets a reliable finished/ongoing hint and
         // doesn't need its own verification call on a miss.
-        const match = await getMatchDetails(matchId, FACEIT_API_KEY);
+        const match = await getMatchDetails(matchId);
         const stats = await getMatchStatsCached(
             matchId,
-            FACEIT_API_KEY,
             match.status === "FINISHED"
         ).catch(() => null);
         return { match, stats, error: null };
@@ -134,11 +115,6 @@ export async function comparePlayersAction(nickname1: string, nickname2: string)
     player2: { player: FaceitPlayer; stats: FaceitPlayerStats | null } | null;
     error: string | null;
 }> {
-    const FACEIT_API_KEY = getActiveApiKey();
-    if (!FACEIT_API_KEY) {
-        return { player1: null, player2: null, error: "API key not configured." };
-    }
-
     try {
         const [data1, data2] = await Promise.all([
             fetchPlayerData(nickname1),
@@ -181,23 +157,11 @@ export async function findSharedMatches(
     partial: boolean;
     error: string | null;
 }> {
-    const FACEIT_API_KEY = getActiveApiKey();
-    if (!FACEIT_API_KEY) {
-        return {
-            sharedMatches: [],
-            player1Nickname: "",
-            player2Nickname: "",
-            checkedCounts: { player1: 0, player2: 0 },
-            partial: false,
-            error: "API key not configured.",
-        };
-    }
-
     try {
         // Fetch both players
         const [player1, player2] = await Promise.all([
-            getPlayerByNickname(nickname1, FACEIT_API_KEY),
-            getPlayerByNickname(nickname2, FACEIT_API_KEY),
+            getPlayerByNickname(nickname1),
+            getPlayerByNickname(nickname2),
         ]);
 
         // Determine game IDs
@@ -223,7 +187,7 @@ export async function findSharedMatches(
             let partial = false;
             for (let page = 0; page < 5; page++) {
                 try {
-                    const res = await getPlayerMatchHistory(playerId, gameId, FACEIT_API_KEY, 100, page * 100);
+                    const res = await getPlayerMatchHistory(playerId, gameId, 100, page * 100);
                     const batch = res.items ?? [];
                     items.push(...batch);
                     if (batch.length < 100) break;
@@ -317,13 +281,8 @@ export async function checkPlayerLiveMatch(playerId: string): Promise<{
     match: FaceitOngoingMatch | null;
     error: string | null;
 }> {
-    const FACEIT_API_KEY = getActiveApiKey();
-    if (!FACEIT_API_KEY) {
-        return { match: null, error: "API key not configured." };
-    }
-
     try {
-        const match = await getPlayerOngoingMatch(playerId, FACEIT_API_KEY);
+        const match = await getPlayerOngoingMatch(playerId);
         return { match, error: null };
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Failed to check live match";
@@ -336,13 +295,8 @@ export async function fetchPlayerMapStats(playerId: string): Promise<{
     mapStats: PlayerMapStats[];
     error: string | null;
 }> {
-    const FACEIT_API_KEY = getActiveApiKey();
-    if (!FACEIT_API_KEY) {
-        return { mapStats: [], error: "API key not configured." };
-    }
-
     try {
-        const mapStats = await getPlayerMapStats(playerId, FACEIT_API_KEY, 50);
+        const mapStats = await getPlayerMapStats(playerId, 50);
         return { mapStats, error: null };
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Failed to fetch map stats";
@@ -359,15 +313,10 @@ export async function fetchTeamAnalysis(players: { player_id: string; nickname: 
     }>;
     error: string | null;
 }> {
-    const FACEIT_API_KEY = getActiveApiKey();
-    if (!FACEIT_API_KEY) {
-        return { teamStats: [], error: "API key not configured." };
-    }
-
     try {
         const teamStats = await Promise.all(
             players.map(async (player) => {
-                const mapStats = await getPlayerMapStats(player.player_id, FACEIT_API_KEY, 30);
+                const mapStats = await getPlayerMapStats(player.player_id, 30);
                 return {
                     playerId: player.player_id,
                     nickname: player.nickname,
