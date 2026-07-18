@@ -113,10 +113,14 @@ export async function fetchMatchWithStats(matchId: string): Promise<{
     }
 
     try {
-        const [match, stats] = await Promise.all([
-            getMatchDetails(matchId, FACEIT_API_KEY),
-            getMatchStatsCached(matchId, FACEIT_API_KEY).catch(() => null),
-        ]);
+        // Match first so the cache gets a reliable finished/ongoing hint and
+        // doesn't need its own verification call on a miss.
+        const match = await getMatchDetails(matchId, FACEIT_API_KEY);
+        const stats = await getMatchStatsCached(
+            matchId,
+            FACEIT_API_KEY,
+            match.status === "FINISHED"
+        ).catch(() => null);
         return { match, stats, error: null };
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Failed to fetch match";

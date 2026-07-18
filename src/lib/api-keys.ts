@@ -50,30 +50,46 @@ function activeKeyIndex(): number {
  * configured; throws only when no keys are set at all.
  */
 export function getActiveApiKey(): string {
+    return getActiveApiKeyWithIndex().key;
+}
+
+/**
+ * Same as getActiveApiKey, but also returns the key's index so callers can
+ * stamp it on the outgoing request and attribute a later 429 to the key that
+ * actually made the request (not whichever key is active at response time).
+ */
+export function getActiveApiKeyWithIndex(): { key: string; index: number } {
     if (API_KEYS.length === 0) {
         throw new Error("No Faceit API key configured");
     }
-    return API_KEYS[activeKeyIndex()];
+    const index = activeKeyIndex();
+    return { key: API_KEYS[index], index };
 }
 
 /**
  * Call this when a rate limit error (429) is received.
- * Blocks the currently active key for the cooldown window and reports whether
- * another key is available to retry with immediately. A 429 on the backup
- * NEVER unblocks or resets the primary key's cooldown.
+ * Blocks the key that made the request (pass the index stamped at request
+ * time) for the cooldown window and reports whether another key is available
+ * to retry with immediately. A 429 on the backup NEVER unblocks or resets the
+ * primary key's cooldown, and an already-blocked key's cooldown is NOT
+ * re-extended by further in-flight 429s.
  */
-export function handleRateLimitError(): boolean {
+export function handleRateLimitError(keyIndex?: number): boolean {
     if (API_KEYS.length === 0) {
         return false;
     }
 
-    const idx = activeKeyIndex();
+    const idx =
+        keyIndex !== undefined && keyIndex >= 0 && keyIndex < API_KEYS.length
+            ? keyIndex
+            : activeKeyIndex();
     const now = Date.now();
     const wasBlocked = state.blockedUntil[idx] > now;
-    state.blockedUntil[idx] = now + KEY_COOLDOWN;
 
-    // Log only on the block transition, never per-call, to avoid log spam.
+    // Log + block only on the transition; in-flight 429s from requests that
+    // were already queued must not keep pushing the cooldown further out.
     if (!wasBlocked) {
+        state.blockedUntil[idx] = now + KEY_COOLDOWN;
         console.warn(`[API Key] Key #${idx} rate limited, blocked for ${KEY_COOLDOWN / 1000}s`);
     }
 

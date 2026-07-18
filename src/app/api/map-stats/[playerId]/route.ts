@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getActiveApiKey, handleRateLimitError } from "@/lib/api-keys";
+import { getActiveApiKey } from "@/lib/api-keys";
+import { getPlayerMatchHistory } from "@/lib/api";
+import { getMatchStatsCached } from "@/lib/match-stats-cache";
 import { isValidPlayerId } from "@/lib/validation";
-
-const FACEIT_API_BASE = "https://open.faceit.com/data/v4";
 
 interface MatchStats {
     map: string;
@@ -21,25 +21,10 @@ interface MatchStats {
     firstKills: number;  // Entry kills (first kill of round)
 }
 
-interface PlayerStats {
-    player_id: string;
-    player_stats: {
-        Kills: string;
-        Deaths: string;
-        Assists: string;
-        Headshots: string;
-        "Triple Kills"?: string;
-        "Quadro Kills"?: string;
-        "Penta Kills"?: string;
-        MVPs?: string;
-        "First Kills"?: string;
-        "Entry Count"?: string;
-    };
-}
-
 interface MatchItem {
     match_id: string;
     finished_at: number;
+    status?: string;
     results?: { winner: string };
     teams?: {
         faction1?: { players?: { player_id: string }[]; roster?: { player_id: string }[] };
@@ -72,30 +57,15 @@ export async function GET(
         const searchParams = request.nextUrl.searchParams;
         const matchCount = Math.min(parseInt(searchParams.get("limit") || "100", 10), 100);
 
-        let historyResponse = await fetch(
-            `${FACEIT_API_BASE}/players/${playerId}/history?game=cs2&limit=${matchCount}`,
-            { headers: { Authorization: `Bearer ${FACEIT_API_KEY}` } }
-        );
-
-        // Handle rate limit with key rotation and retry
-        if (historyResponse.status === 429) {
-            const switched = handleRateLimitError();
-            if (switched) {
-                FACEIT_API_KEY = getActiveApiKey();
-                // Retry with new key
-                historyResponse = await fetch(
-                    `${FACEIT_API_BASE}/players/${playerId}/history?game=cs2&limit=${matchCount}`,
-                    { headers: { Authorization: `Bearer ${FACEIT_API_KEY}` } }
-                );
-            }
+        // Central faceitApi client: throttle, key rotation and 429 retries
+        // are handled by the shared interceptors — no manual handling here.
+        let matches: MatchItem[];
+        try {
+            const historyData = await getPlayerMatchHistory(playerId, "cs2", FACEIT_API_KEY, matchCount);
+            matches = (historyData?.items || []) as unknown as MatchItem[];
+        } catch {
+            return NextResponse.json({ mapStats: [], error: "Failed to fetch match history" });
         }
-
-        if (!historyResponse.ok) {
-            return NextResponse.json({ mapStats: [], error: historyResponse.status === 429 ? "Rate limit exceeded" : "Failed to fetch match history" });
-        }
-
-        const historyData = await historyResponse.json();
-        const matches = historyData?.items || [];
 
         if (matches.length === 0) {
             return NextResponse.json({ mapStats: [], matchesAnalyzed: 0 });
@@ -107,26 +77,17 @@ export async function GET(
         await Promise.all(
             matches.map(async (match: MatchItem) => {
                 try {
-                    let statsResponse = await fetch(
-                        `${FACEIT_API_BASE}/matches/${match.match_id}/stats`,
-                        { headers: { Authorization: `Bearer ${FACEIT_API_KEY}` } }
+                    // History items carry the match status, so the persistent
+                    // cache gets its finished-hint for free — repeat analyses
+                    // are served from the DB without touching the Faceit API.
+                    const finished = match.status
+                        ? match.status === "FINISHED"
+                        : match.finished_at > 0;
+                    const statsData = await getMatchStatsCached(
+                        match.match_id,
+                        FACEIT_API_KEY,
+                        finished
                     );
-
-                    // Rate limit handling with retry
-                    if (statsResponse.status === 429) {
-                        const switched = handleRateLimitError();
-                        if (switched) {
-                            FACEIT_API_KEY = getActiveApiKey();
-                            statsResponse = await fetch(
-                                `${FACEIT_API_BASE}/matches/${match.match_id}/stats`,
-                                { headers: { Authorization: `Bearer ${FACEIT_API_KEY}` } }
-                            );
-                        }
-                    }
-
-                    if (!statsResponse.ok) return;
-
-                    const statsData = await statsResponse.json();
                     const round = statsData?.rounds?.[0];
                     const mapName = round?.round_stats?.Map;
 
@@ -146,7 +107,7 @@ export async function GET(
                         ...(round?.teams?.[1]?.players || [])
                     ];
                     const playerMatchStats = allPlayers.find(
-                        (p: PlayerStats) => p.player_id === playerId
+                        (p) => p.player_id === playerId
                     );
 
                     if (!mapData[mapName]) mapData[mapName] = [];

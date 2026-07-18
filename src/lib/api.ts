@@ -1,11 +1,14 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
-import { getActiveApiKey, handleRateLimitError } from "./api-keys";
+import { getActiveApiKeyWithIndex, handleRateLimitError } from "./api-keys";
 
 const FACEIT_API_BASE = "https://open.faceit.com/data/v4";
 
-// Create axios instance with base configuration
+// Create axios instance with base configuration.
+// The timeout is mandatory: a hung request would otherwise hold one of the
+// MAX_CONCURRENT throttle slots forever and eventually deadlock all traffic.
 const faceitApi = axios.create({
     baseURL: FACEIT_API_BASE,
+    timeout: 10_000,
     headers: {
         Accept: "application/json",
     },
@@ -15,6 +18,7 @@ const faceitApi = axios.create({
 interface ThrottledConfig extends InternalAxiosRequestConfig {
     __retryCount?: number;
     __slotHeld?: boolean;
+    __keyIndex?: number;
 }
 
 // ---- Global outgoing throttle -------------------------------------------
@@ -66,7 +70,11 @@ function releaseSlot(): void {
 faceitApi.interceptors.request.use(async (config) => {
     await acquireSlot();
     try {
-        config.headers.Authorization = `Bearer ${getActiveApiKey()}`;
+        const { key, index } = getActiveApiKeyWithIndex();
+        config.headers.Authorization = `Bearer ${key}`;
+        // Stamp which key this request goes out with, so a 429 blocks THIS
+        // key — not whichever key happens to be active at response time.
+        (config as ThrottledConfig).__keyIndex = index;
     } catch (err) {
         releaseSlot();
         throw err;
@@ -93,7 +101,7 @@ faceitApi.interceptors.response.use(
         }
 
         if (error.response?.status === 429 && cfg) {
-            handleRateLimitError();
+            handleRateLimitError(cfg.__keyIndex);
             const count = cfg.__retryCount ?? 0;
             if (count < 2) {
                 cfg.__retryCount = count + 1;
@@ -106,6 +114,16 @@ faceitApi.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+/**
+ * Generic GET against the Faceit API through the shared throttled client
+ * (slot semaphore, key rotation, 429 retry, timeout). For callers like the
+ * proxy route that forward arbitrary — but validated — endpoint paths.
+ */
+export async function faceitGet<T = unknown>(path: string): Promise<T> {
+    const response = await faceitApi.get<T>(path);
+    return response.data;
+}
 
 // Types for Faceit API responses
 export interface FaceitPlayer {
@@ -149,6 +167,8 @@ export interface FaceitMatch {
     game_id: string;
     region: string;
     match_type: string;
+    // e.g. "FINISHED", "ONGOING", "CANCELLED" — present on /matches/{id}
+    status?: string;
     teams: {
         faction1: {
             team_id?: string;
@@ -335,6 +355,9 @@ export interface FaceitMatchStats {
                     "Triple Kills"?: string;
                     "Quadro Kills"?: string;
                     "Penta Kills"?: string;
+                    // Faceit returns many more stat keys than declared above
+                    // (e.g. "First Kills", "Entry Count") — allow lookups.
+                    [key: string]: string | undefined;
                 };
             }>;
         }>;
