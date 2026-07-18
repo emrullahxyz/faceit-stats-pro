@@ -1,9 +1,9 @@
 /**
  * Faceit API Key Rotation System
  * Per-key cooldowns: when a key hits a rate limit it is blocked for a fixed
- * window. getActiveApiKey always returns a currently-unblocked key when one
- * exists, otherwise the key that recovers soonest. A 429 on one key never
- * resets another key's cooldown.
+ * window. getActiveApiKeyWithIndex always returns a currently-unblocked key
+ * when one exists, otherwise the key that recovers soonest. A 429 on one key
+ * never resets another key's cooldown.
  */
 
 interface KeyState {
@@ -46,17 +46,11 @@ function activeKeyIndex(): number {
 }
 
 /**
- * Get the current active API key. Never throws while at least one key is
- * configured; throws only when no keys are set at all.
- */
-export function getActiveApiKey(): string {
-    return getActiveApiKeyWithIndex().key;
-}
-
-/**
- * Same as getActiveApiKey, but also returns the key's index so callers can
- * stamp it on the outgoing request and attribute a later 429 to the key that
+ * Get the current active API key with its index, so the caller can stamp the
+ * index on the outgoing request and attribute a later 429 to the key that
  * actually made the request (not whichever key is active at response time).
+ * Never throws while at least one key is configured; throws only when no
+ * keys are set at all.
  */
 export function getActiveApiKeyWithIndex(): { key: string; index: number } {
     if (API_KEYS.length === 0) {
@@ -100,13 +94,6 @@ export function handleRateLimitError(keyIndex?: number): boolean {
         }
     }
     return false;
-}
-
-/**
- * Check if we have more than one key to rotate between
- */
-export function hasBackupKey(): boolean {
-    return API_KEYS.length > 1;
 }
 
 /**

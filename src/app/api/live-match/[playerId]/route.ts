@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidPlayerId } from "@/lib/validation";
-import { getActiveApiKey } from "@/lib/api-keys";
+import { getMatchDetails, getPlayerMatchHistory } from "@/lib/api";
 
-const FACEIT_API_BASE = "https://open.faceit.com/data/v4";
+// All possible ongoing/active statuses
+const ACTIVE_STATUSES = [
+    "VOTING",
+    "CONFIGURING",
+    "READY",
+    "ONGOING",
+    "PLAYING",
+    "CAPTAIN_PICK",
+    "SCHEDULED",
+    "LIVE",
+    "STARTED",
+    "CHECK_IN",
+];
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ playerId: string }> }
 ) {
-    let FACEIT_API_KEY: string;
-    try {
-        FACEIT_API_KEY = getActiveApiKey();
-    } catch {
-        return NextResponse.json({ match: null, error: "API key not configured" }, { status: 500 });
-    }
-
     try {
         const { playerId } = await params;
 
@@ -25,52 +30,32 @@ export async function GET(
             );
         }
 
-        // Check recent matches - sometimes the ongoing match appears as the most recent
-        const historyResponse = await fetch(
-            `${FACEIT_API_BASE}/players/${playerId}/history?game=cs2&limit=5`,
-            {
-                headers: { Authorization: `Bearer ${FACEIT_API_KEY}` },
-                cache: 'no-store'  // No caching for live data
-            }
-        );
-
-        if (!historyResponse.ok) {
+        // Check recent matches - sometimes the ongoing match appears as the most recent.
+        // Central faceitApi client handles throttle, key rotation and retries.
+        let matches;
+        try {
+            const history = await getPlayerMatchHistory(playerId, "cs2", 5);
+            matches = history?.items || [];
+        } catch {
             return NextResponse.json({ match: null, error: "Failed to fetch history" });
         }
 
-        const historyData = await historyResponse.json();
-        const matches = historyData?.items || [];
-
-        // Check each recent match for ongoing status
+        // Check each recent match for ongoing status. Remember the first
+        // match's status so it isn't refetched for the lastMatchStatus field.
+        let lastMatchStatus: string | null = null;
         for (const historyMatch of matches) {
-            // Get full match details to check status
-            const matchResponse = await fetch(
-                `${FACEIT_API_BASE}/matches/${historyMatch.match_id}`,
-                {
-                    headers: { Authorization: `Bearer ${FACEIT_API_KEY}` },
-                    cache: 'no-store'
-                }
-            );
+            let matchData;
+            try {
+                matchData = await getMatchDetails(historyMatch.match_id);
+            } catch {
+                continue;
+            }
 
-            if (!matchResponse.ok) continue;
+            if (lastMatchStatus === null) {
+                lastMatchStatus = matchData.status ?? null;
+            }
 
-            const matchData = await matchResponse.json();
-
-            // All possible ongoing/active statuses
-            const activeStatuses = [
-                'VOTING',
-                'CONFIGURING',
-                'READY',
-                'ONGOING',
-                'PLAYING',
-                'CAPTAIN_PICK',
-                'SCHEDULED',
-                'LIVE',
-                'STARTED',
-                'CHECK_IN'
-            ];
-
-            if (activeStatuses.includes(matchData.status?.toUpperCase())) {
+            if (ACTIVE_STATUSES.includes(matchData.status?.toUpperCase() ?? "")) {
                 return NextResponse.json({ match: matchData });
             }
 
@@ -80,33 +65,17 @@ export async function GET(
             const oneHourAgo = now - 3600;
 
             if (createdAt && createdAt > oneHourAgo &&
-                matchData.status !== 'FINISHED' &&
-                matchData.status !== 'CANCELLED' &&
-                matchData.status !== 'ABORTED') {
+                matchData.status !== "FINISHED" &&
+                matchData.status !== "CANCELLED" &&
+                matchData.status !== "ABORTED") {
                 return NextResponse.json({ match: matchData });
             }
         }
 
         // No ongoing match found
-        const lastStatus = matches[0] ? await getMatchStatus(matches[0].match_id, FACEIT_API_KEY) : null;
-        return NextResponse.json({ match: null, lastMatchStatus: lastStatus });
+        return NextResponse.json({ match: null, lastMatchStatus });
     } catch (error) {
         console.error("Live match API error:", error);
         return NextResponse.json({ match: null, error: String(error) });
-    }
-}
-
-async function getMatchStatus(matchId: string, apiKey: string): Promise<string | null> {
-    try {
-        const response = await fetch(
-            `${FACEIT_API_BASE}/matches/${matchId}`,
-            {
-                headers: { Authorization: `Bearer ${apiKey}` },
-            }
-        );
-        const data = await response.json();
-        return data.status || null;
-    } catch {
-        return null;
     }
 }

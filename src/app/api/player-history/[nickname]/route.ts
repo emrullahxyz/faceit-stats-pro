@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidNickname } from "@/lib/validation";
-import { getActiveApiKey } from "@/lib/api-keys";
+import { getPlayerByNickname, getPlayerMatchHistory, type FaceitMatch } from "@/lib/api";
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ nickname: string }> }
 ) {
-    let FACEIT_API_KEY: string;
-    try {
-        FACEIT_API_KEY = getActiveApiKey();
-    } catch {
-        return NextResponse.json({ error: "API key not configured" }, { status: 500 });
-    }
-
     try {
         const { nickname } = await params;
 
@@ -23,46 +16,28 @@ export async function GET(
             );
         }
 
-        // First get player ID from nickname
-        const playerRes = await fetch(
-            `https://open.faceit.com/data/v4/players?nickname=${encodeURIComponent(nickname)}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${FACEIT_API_KEY}`,
-                    'Accept': 'application/json'
-                }
-            }
-        );
-
-        if (!playerRes.ok) {
+        // Central faceitApi client handles throttle, key rotation and retries.
+        let player;
+        try {
+            player = await getPlayerByNickname(nickname);
+        } catch {
             return NextResponse.json({ error: "Player not found" }, { status: 404 });
         }
 
-        const playerData = await playerRes.json();
-
-        // Fetch match history
-        const historyRes = await fetch(
-            `https://open.faceit.com/data/v4/players/${playerData.player_id}/history?game=cs2&limit=10`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${FACEIT_API_KEY}`,
-                    'Accept': 'application/json'
-                }
-            }
-        );
-
-        if (!historyRes.ok) {
-            return NextResponse.json({ matches: [] });
+        let matches: FaceitMatch[];
+        try {
+            const history = await getPlayerMatchHistory(player.player_id, "cs2", 10);
+            matches = history.items || [];
+        } catch {
+            matches = [];
         }
-
-        const historyData = await historyRes.json();
 
         return NextResponse.json({
             player: {
-                player_id: playerData.player_id,
-                nickname: playerData.nickname
+                player_id: player.player_id,
+                nickname: player.nickname,
             },
-            matches: historyData.items || []
+            matches,
         });
     } catch (error) {
         console.error("Error fetching player history:", error);

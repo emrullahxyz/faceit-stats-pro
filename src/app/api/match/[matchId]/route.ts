@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAxiosError } from "axios";
 import { isValidMatchId } from "@/lib/validation";
-import { getActiveApiKey } from "@/lib/api-keys";
-
-const FACEIT_API_BASE = "https://open.faceit.com/data/v4";
+import { getMatchDetails } from "@/lib/api";
 
 interface FaceitPlayer {
     player_id: string;
@@ -15,13 +14,6 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ matchId: string }> }
 ) {
-    let FACEIT_API_KEY: string;
-    try {
-        FACEIT_API_KEY = getActiveApiKey();
-    } catch {
-        return NextResponse.json({ error: "API key not configured" }, { status: 500 });
-    }
-
     try {
         const { matchId } = await params;
 
@@ -32,27 +24,23 @@ export async function GET(
             );
         }
 
-        const response = await fetch(
-            `${FACEIT_API_BASE}/matches/${matchId}`,
-            {
-                headers: { Authorization: `Bearer ${FACEIT_API_KEY}` },
-                cache: 'no-store'
+        // Central faceitApi client handles throttle, key rotation and retries.
+        let matchData;
+        try {
+            matchData = await getMatchDetails(matchId);
+        } catch (error) {
+            if (isAxiosError(error) && error.response?.status === 429) {
+                return NextResponse.json(
+                    { error: "Rate limit exceeded. Please wait a moment and try again." },
+                    { status: 429 }
+                );
             }
-        );
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`[Match API] Error ${response.status} for ${matchId}:`, errorText);
-
-            // Check if it's rate limiting
-            if (response.status === 429) {
-                return NextResponse.json({ error: "Rate limit exceeded. Please wait a moment and try again." }, { status: 429 });
-            }
-
-            return NextResponse.json({ error: "Match not found or not yet available" }, { status: 404 });
+            console.error(`[Match API] Error for ${matchId}:`, error);
+            return NextResponse.json(
+                { error: "Match not found or not yet available" },
+                { status: 404 }
+            );
         }
-
-        const matchData = await response.json();
 
         // Normalize players - Faceit API sometimes uses 'roster' instead of 'players'
         const normalizeTeam = (faction: {

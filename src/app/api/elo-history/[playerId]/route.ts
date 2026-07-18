@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidPlayerId } from "@/lib/validation";
-import { getActiveApiKey } from "@/lib/api-keys";
+import { getPlayerById, getPlayerMatchHistory } from "@/lib/api";
 
-const FACEIT_API_BASE = "https://open.faceit.com/data/v4";
+// The old raw-fetch version cached upstream responses for 5 minutes via
+// next.revalidate; caching the whole route result preserves that.
+export const revalidate = 300;
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ playerId: string }> }
 ) {
-    const FACEIT_API_KEY = getActiveApiKey();
-
-    if (!FACEIT_API_KEY) {
-        return NextResponse.json({ error: "API key not configured" }, { status: 500 });
-    }
-
     try {
         const { playerId } = await params;
 
@@ -25,42 +21,30 @@ export async function GET(
             );
         }
 
-        // First get player's current ELO
-        const playerResponse = await fetch(
-            `${FACEIT_API_BASE}/players/${playerId}`,
-            {
-                headers: { Authorization: `Bearer ${FACEIT_API_KEY}` },
-                next: { revalidate: 300 }, // Cache 5 minutes
-            }
-        );
-
-        if (!playerResponse.ok) {
+        // First get player's current ELO.
+        // Central faceitApi client handles throttle, key rotation and retries.
+        let currentElo: number;
+        let gameId: string;
+        try {
+            const playerData = await getPlayerById(playerId);
+            currentElo = playerData.games?.cs2?.faceit_elo || playerData.games?.csgo?.faceit_elo || 0;
+            gameId = playerData.games?.cs2 ? "cs2" : "csgo";
+        } catch {
             return NextResponse.json({ items: [] });
         }
-
-        const playerData = await playerResponse.json();
-        const currentElo = playerData.games?.cs2?.faceit_elo || playerData.games?.csgo?.faceit_elo || 0;
-        const gameId = playerData.games?.cs2 ? "cs2" : "csgo";
 
         if (!currentElo) {
             return NextResponse.json({ items: [] });
         }
 
         // Get match history
-        const historyResponse = await fetch(
-            `${FACEIT_API_BASE}/players/${playerId}/history?game=${gameId}&limit=50`,
-            {
-                headers: { Authorization: `Bearer ${FACEIT_API_KEY}` },
-                next: { revalidate: 300 }, // Cache 5 minutes
-            }
-        );
-
-        if (!historyResponse.ok) {
+        let matches;
+        try {
+            const history = await getPlayerMatchHistory(playerId, gameId, 50);
+            matches = history.items || [];
+        } catch {
             return NextResponse.json({ items: [] });
         }
-
-        const historyData = await historyResponse.json();
-        const matches = historyData.items || [];
 
         if (matches.length === 0) {
             return NextResponse.json({ items: [] });

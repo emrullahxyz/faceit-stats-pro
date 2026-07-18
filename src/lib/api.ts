@@ -169,6 +169,12 @@ export interface FaceitMatch {
     match_type: string;
     // e.g. "FINISHED", "ONGOING", "CANCELLED" — present on /matches/{id}
     status?: string;
+    created_at?: number;
+    voting?: {
+        map?: {
+            pick: string[];
+        };
+    };
     teams: {
         faction1: {
             team_id?: string;
@@ -262,6 +268,11 @@ export async function getPlayerByNickname(nickname: string): Promise<FaceitPlaye
         // If no match found, throw original error
         throw error;
     }
+}
+
+export async function getPlayerById(playerId: string): Promise<FaceitPlayer> {
+    const response = await faceitApi.get(`/players/${playerId}`);
+    return response.data;
 }
 
 export async function getPlayerStats(playerId: string, gameId: string): Promise<FaceitPlayerStats> {
