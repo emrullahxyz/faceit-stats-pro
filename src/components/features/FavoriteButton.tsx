@@ -44,12 +44,12 @@ export default function FavoriteButton({ player, size = "md", showLabel = false 
                 } ${showLabel ? "px-3 w-auto gap-1.5" : ""}`}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            title={isActive ? "Remove from favorites" : "Add to favorites"}
+            title={isActive ? "Favorilerden çıkar" : "Favorilere ekle"}
         >
             <Star className={`${iconSizes[size]} ${isActive ? "fill-amber-400" : ""}`} />
             {showLabel && (
                 <span className="text-xs font-medium">
-                    {isActive ? "Favorited" : "Favorite"}
+                    {isActive ? "Favoride" : "Favorile"}
                 </span>
             )}
         </motion.button>

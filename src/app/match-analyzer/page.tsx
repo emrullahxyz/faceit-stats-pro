@@ -337,7 +337,7 @@ export default function MatchAnalyzerPage() {
                 faction2: playersWithStats.filter(p => matchData.teams.faction2.players.some((fp: TeamPlayer) => fp.player_id === p.player_id))
             });
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to analyze match");
+            setError(err instanceof Error ? err.message : "Maç analiz edilemedi.");
         } finally {
             setMatchLoading(false);
         }
@@ -349,7 +349,7 @@ export default function MatchAnalyzerPage() {
     }, [searchParams, analyzeMatch]);
 
     const searchPlayer = async () => {
-        if (!playerNickname.trim()) { setPlayerError("Enter a nickname"); return; }
+        if (!playerNickname.trim()) { setPlayerError("Bir nickname gir"); return; }
         setPlayerLoading(true); setPlayerError(null); setPlayerMatches([]); setMatch(null);
 
         try {
@@ -362,11 +362,11 @@ export default function MatchAnalyzerPage() {
             }
 
             const historyRes = await fetch(`/api/player-history/${encodeURIComponent(playerNickname.trim())}`);
-            if (!historyRes.ok) throw new Error("Player not found");
+            if (!historyRes.ok) throw new Error("Oyuncu bulunamadı.");
             const historyData = await historyRes.json();
             setPlayerMatches(historyData.matches || []);
         } catch (err) {
-            setPlayerError(err instanceof Error ? err.message : "Failed to find player");
+            setPlayerError(err instanceof Error ? err.message : "Oyuncu bulunamadı.");
         } finally { setPlayerLoading(false); }
     };
 
@@ -477,23 +477,23 @@ export default function MatchAnalyzerPage() {
                     <div className="text-center">
                         <h1 className="text-2xl font-bold flex items-center justify-center gap-2">
                             <Gamepad2 className="h-6 w-6 text-[#ff5500]" />
-                            Match Analyzer
+                            Maç Analizörü
                         </h1>
-                        <p className="text-muted-foreground text-sm mt-1">AI-powered map recommendations</p>
+                        <p className="text-muted-foreground text-sm mt-1">Yapay zekâ destekli harita önerileri</p>
                     </div>
 
                     {/* Search Tabs */}
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="match"><Gamepad2 className="h-4 w-4 mr-1.5" />Match ID</TabsTrigger>
-                            <TabsTrigger value="player"><User className="h-4 w-4 mr-1.5" />Player</TabsTrigger>
+                            <TabsTrigger value="match"><Gamepad2 className="h-4 w-4 mr-1.5" />Maç ID</TabsTrigger>
+                            <TabsTrigger value="player"><User className="h-4 w-4 mr-1.5" />Oyuncu</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="match" className="mt-3">
                             <div className="flex gap-2">
-                                <NicknameInput placeholder="Faceit match URL or ID..." value={matchUrl} onChange={(e) => setMatchUrl(e.target.value)} onClear={() => setMatchUrl("")} onKeyDown={(e) => e.key === "Enter" && analyzeMatch()} />
+                                <NicknameInput placeholder="Faceit maç URL'si veya ID..." value={matchUrl} onChange={(e) => setMatchUrl(e.target.value)} onClear={() => setMatchUrl("")} onKeyDown={(e) => e.key === "Enter" && analyzeMatch()} />
                                 <Button onClick={() => analyzeMatch()} disabled={matchLoading} className="bg-[#ff5500] hover:bg-[#ff5500]/80 shrink-0">
-                                    {matchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Search className="h-4 w-4 mr-1" />Analyze</>}
+                                    {matchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Search className="h-4 w-4 mr-1" />Analiz Et</>}
                                 </Button>
                             </div>
                             {error && <p className="text-rose-400 text-sm mt-2">{error}</p>}
@@ -501,9 +501,9 @@ export default function MatchAnalyzerPage() {
 
                         <TabsContent value="player" className="mt-3">
                             <div className="flex gap-2">
-                                <NicknameInput placeholder="Player nickname..." value={playerNickname} onChange={(e) => setPlayerNickname(e.target.value)} onClear={() => setPlayerNickname("")} onKeyDown={(e) => e.key === "Enter" && searchPlayer()} />
+                                <NicknameInput placeholder="Oyuncu nickname'i..." value={playerNickname} onChange={(e) => setPlayerNickname(e.target.value)} onClear={() => setPlayerNickname("")} onKeyDown={(e) => e.key === "Enter" && searchPlayer()} />
                                 <Button onClick={searchPlayer} disabled={playerLoading} className="bg-[#ff5500] hover:bg-[#ff5500]/80 shrink-0">
-                                    {playerLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Search className="h-4 w-4 mr-1" />Search</>}
+                                    {playerLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Search className="h-4 w-4 mr-1" />Ara</>}
                                 </Button>
                             </div>
                             {playerError && <p className="text-rose-400 text-sm mt-2">{playerError}</p>}
@@ -513,8 +513,8 @@ export default function MatchAnalyzerPage() {
                                     {playerMatches.slice(0, 5).map((m) => (
                                         <button key={m.match_id} onClick={() => { setActiveTab("match"); setMatchUrl(m.match_id); analyzeMatch(m.match_id); }}
                                             className={`w-full p-2 rounded text-sm text-left flex items-center justify-between ${m.isLive ? "bg-emerald-500/20 border border-emerald-500/40" : "bg-secondary/50 hover:bg-secondary"}`}>
-                                            <span>{m.isLive ? <><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block mr-1.5" />Live Match</> : `${m.teams.faction1.nickname} vs ${m.teams.faction2.nickname}`}</span>
-                                            {m.isLive && <Badge className="bg-emerald-500 text-xs">LIVE</Badge>}
+                                            <span>{m.isLive ? <><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block mr-1.5" />Canlı Maç</> : `${m.teams.faction1.nickname} vs ${m.teams.faction2.nickname}`}</span>
+                                            {m.isLive && <Badge className="bg-emerald-500 text-xs">CANLI</Badge>}
                                         </button>
                                     ))}
                                 </div>
@@ -543,11 +543,11 @@ export default function MatchAnalyzerPage() {
                                 <div className="flex items-center justify-between p-2.5 rounded-lg bg-gradient-to-r from-[#ff5500]/10 to-transparent border border-[#ff5500]/20 text-sm">
                                     <div className="flex items-center gap-2">
                                         <Badge variant="outline" className={match.status === "ONGOING" ? "border-emerald-500 text-emerald-400" : ""}>{match.status}</Badge>
-                                        {isUserInMatch ? <><Crown className="h-4 w-4 text-amber-400" /><span className="text-amber-400">Your match</span></> : <><Eye className="h-4 w-4 text-muted-foreground" /><span className="text-muted-foreground">Spectating</span></>}
+                                        {isUserInMatch ? <><Crown className="h-4 w-4 text-amber-400" /><span className="text-amber-400">Senin maçın</span></> : <><Eye className="h-4 w-4 text-muted-foreground" /><span className="text-muted-foreground">İzleyici</span></>}
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <button onClick={() => setShowShareCard(true)} className="flex items-center gap-1 text-[#ff5500] hover:underline">
-                                            <Share2 className="h-3.5 w-3.5" /> Share
+                                            <Share2 className="h-3.5 w-3.5" /> Paylaş
                                         </button>
                                         <a href={(() => { try { return decodeURIComponent(match.faceit_url).replace(/\/{lang}/g, ""); } catch { return match.faceit_url.replace(/\/{lang}/g, ""); } })()} target="_blank" rel="noopener noreferrer" className="text-[#ff5500] hover:underline flex items-center gap-1">Faceit <ExternalLink className="h-3 w-3" /></a>
                                     </div>
@@ -557,12 +557,12 @@ export default function MatchAnalyzerPage() {
                                 <div className="grid grid-cols-3 items-center text-center py-2">
                                     <div className="text-right pr-4">
                                         <p className="font-semibold truncate">{myTeamName}</p>
-                                        <p className="text-xs text-muted-foreground">{isUserInMatch ? "Your Team" : "Team 1"}</p>
+                                        <p className="text-xs text-muted-foreground">{isUserInMatch ? "Takımın" : "1. Takım"}</p>
                                     </div>
                                     <div className="text-xl font-bold text-muted-foreground">VS</div>
                                     <div className="text-left pl-4">
                                         <p className="font-semibold truncate">{enemyTeamName}</p>
-                                        <p className="text-xs text-muted-foreground">{isUserInMatch ? "Opponent" : "Team 2"}</p>
+                                        <p className="text-xs text-muted-foreground">{isUserInMatch ? "Rakip" : "2. Takım"}</p>
                                     </div>
                                 </div>
 
@@ -571,7 +571,7 @@ export default function MatchAnalyzerPage() {
                                     <CardHeader className="py-3 px-4">
                                         <CardTitle className="text-base flex items-center gap-2">
                                             <Target className="h-4 w-4 text-[#ff5500]" />
-                                            Map Strategy
+                                            Harita Stratejisi
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-0">
@@ -590,7 +590,7 @@ export default function MatchAnalyzerPage() {
 
                                                         {/* Weak Point Indicator */}
                                                         {ma.enemyTeamWinRate < 45 && ma.enemyTeamPlayerCount >= 3 && (
-                                                            <span className="text-red-400 shrink-0" title="Enemy weak point!">🎯</span>
+                                                            <span className="text-red-400 shrink-0" title="Rakibin zayıf noktası!">🎯</span>
                                                         )}
 
                                                         {/* Score Comparison Bar */}
@@ -608,7 +608,7 @@ export default function MatchAnalyzerPage() {
 
                                                         {/* Data Quality - Clear Label */}
                                                         <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${ma.confidence === "high" ? "bg-emerald-500/20 text-emerald-400" : ma.confidence === "medium" ? "bg-amber-500/20 text-amber-400" : "bg-rose-500/20 text-rose-400"}`}>
-                                                            {ma.confidence === "high" ? "✓ Reliable" : ma.confidence === "medium" ? "○ Medium" : "! Low data"}
+                                                            {ma.confidence === "high" ? "✓ Güvenilir" : ma.confidence === "medium" ? "○ Orta" : "! Az veri"}
                                                         </span>
                                                     </button>
 
@@ -627,22 +627,22 @@ export default function MatchAnalyzerPage() {
                                                                 {/* Win Rate */}
                                                                 <div className="grid grid-cols-3 gap-2 items-center text-sm">
                                                                     <span className={`text-center font-bold ${ma.myTeamWinRate > ma.enemyTeamWinRate ? "text-emerald-400" : ""}`}>{ma.myTeamWinRate.toFixed(0)}%</span>
-                                                                    <span className="text-center text-xs text-muted-foreground">Win Rate</span>
+                                                                    <span className="text-center text-xs text-muted-foreground">Kazanma Oranı</span>
                                                                     <span className={`text-center font-bold ${ma.enemyTeamWinRate > ma.myTeamWinRate ? "text-rose-400" : ""}`}>{ma.enemyTeamWinRate.toFixed(0)}%</span>
                                                                 </div>
 
                                                                 {/* K/D */}
                                                                 <div className="grid grid-cols-3 gap-2 items-center text-sm">
                                                                     <span className={`text-center font-bold ${ma.myTeamKD > ma.enemyTeamKD ? "text-emerald-400" : ""}`}>{ma.myTeamKD.toFixed(2)}</span>
-                                                                    <span className="text-center text-xs text-muted-foreground">K/D Ratio</span>
+                                                                    <span className="text-center text-xs text-muted-foreground">K/D Oranı</span>
                                                                     <span className={`text-center font-bold ${ma.enemyTeamKD > ma.myTeamKD ? "text-rose-400" : ""}`}>{ma.enemyTeamKD.toFixed(2)}</span>
                                                                 </div>
 
                                                                 {/* Match Count */}
                                                                 <div className="grid grid-cols-3 gap-2 items-center text-sm">
-                                                                    <span className="text-center">{ma.myTeamPlayerCount}/5 players</span>
-                                                                    <span className="text-center text-xs text-muted-foreground">Data</span>
-                                                                    <span className="text-center">{ma.enemyTeamPlayerCount}/5 players</span>
+                                                                    <span className="text-center">{ma.myTeamPlayerCount}/5 oyuncu</span>
+                                                                    <span className="text-center text-xs text-muted-foreground">Veri</span>
+                                                                    <span className="text-center">{ma.enemyTeamPlayerCount}/5 oyuncu</span>
                                                                 </div>
                                                             </div>
 
@@ -650,18 +650,18 @@ export default function MatchAnalyzerPage() {
                                                             <div className="flex justify-between pt-2 border-t border-border/20">
                                                                 <div className="flex gap-1">
                                                                     {ma.myTeamStreak?.type === "win" && ma.myTeamStreak.count >= 2 && (
-                                                                        <Badge className="bg-emerald-500/20 text-emerald-400 text-xs"><Flame className="h-3 w-3 mr-0.5" />{ma.myTeamStreak.count} win streak</Badge>
+                                                                        <Badge className="bg-emerald-500/20 text-emerald-400 text-xs"><Flame className="h-3 w-3 mr-0.5" />{ma.myTeamStreak.count} galibiyet serisi</Badge>
                                                                     )}
                                                                     {ma.myTeamStreak?.type === "loss" && ma.myTeamStreak.count >= 2 && (
-                                                                        <Badge className="bg-rose-500/20 text-rose-400 text-xs"><Snowflake className="h-3 w-3 mr-0.5" />{ma.myTeamStreak.count} loss streak</Badge>
+                                                                        <Badge className="bg-rose-500/20 text-rose-400 text-xs"><Snowflake className="h-3 w-3 mr-0.5" />{ma.myTeamStreak.count} mağlubiyet serisi</Badge>
                                                                     )}
                                                                 </div>
                                                                 <div className="flex gap-1">
                                                                     {ma.enemyTeamStreak?.type === "win" && ma.enemyTeamStreak.count >= 2 && (
-                                                                        <Badge className="bg-emerald-500/20 text-emerald-400 text-xs"><Flame className="h-3 w-3 mr-0.5" />{ma.enemyTeamStreak.count} wins</Badge>
+                                                                        <Badge className="bg-emerald-500/20 text-emerald-400 text-xs"><Flame className="h-3 w-3 mr-0.5" />{ma.enemyTeamStreak.count} galibiyet</Badge>
                                                                     )}
                                                                     {ma.enemyTeamStreak?.type === "loss" && ma.enemyTeamStreak.count >= 2 && (
-                                                                        <Badge className="bg-rose-500/20 text-rose-400 text-xs"><Snowflake className="h-3 w-3 mr-0.5" />{ma.enemyTeamStreak.count} losses</Badge>
+                                                                        <Badge className="bg-rose-500/20 text-rose-400 text-xs"><Snowflake className="h-3 w-3 mr-0.5" />{ma.enemyTeamStreak.count} mağlubiyet</Badge>
                                                                     )}
                                                                 </div>
                                                             </div>
@@ -670,7 +670,7 @@ export default function MatchAnalyzerPage() {
                                                             <div className="pt-2 border-t border-border/20 space-y-2">
                                                                 {/* Reliability Score */}
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className="text-xs text-muted-foreground">Reliability:</span>
+                                                                    <span className="text-xs text-muted-foreground">Güvenilirlik:</span>
                                                                     <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
                                                                         <div
                                                                             className={`h-full rounded-full ${ma.significanceLevel === "reliable" ? "bg-emerald-500" : ma.significanceLevel === "moderate" ? "bg-amber-500" : "bg-rose-500"}`}
@@ -686,20 +686,20 @@ export default function MatchAnalyzerPage() {
                                                                 {ma.enemyTeamWinRate < 45 && ma.enemyTeamPlayerCount >= 3 && (
                                                                     <div className="flex items-center gap-2 p-1.5 rounded bg-red-500/10 border border-red-500/20">
                                                                         <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
-                                                                        <span className="text-xs text-red-400">🎯 Enemy weak point! {ma.enemyTeamWinRate.toFixed(0)}% win rate</span>
+                                                                        <span className="text-xs text-red-400">🎯 Rakibin zayıf noktası! %{ma.enemyTeamWinRate.toFixed(0)} kazanma oranı</span>
                                                                     </div>
                                                                 )}
 
                                                                 {/* Sample Size Info */}
                                                                 <div className="flex justify-between text-[10px] text-muted-foreground">
-                                                                    <span>Sample: {ma.myTeamTotalMatches} matches</span>
-                                                                    <span>Sample: {ma.enemyTeamTotalMatches} matches</span>
+                                                                    <span>Örneklem: {ma.myTeamTotalMatches} maç</span>
+                                                                    <span>Örneklem: {ma.enemyTeamTotalMatches} maç</span>
                                                                 </div>
                                                             </div>
 
                                                             {/* Recommendation */}
                                                             <div className={`p-2 rounded text-center text-sm font-medium ${ma.recommendation === "PICK" ? "bg-emerald-500/10 text-emerald-400" : ma.recommendation === "BAN" ? "bg-rose-500/10 text-rose-400" : "bg-amber-500/10 text-amber-400"}`}>
-                                                                {ma.recommendation === "PICK" ? "✓ PICK this map - You have the advantage" : ma.recommendation === "BAN" ? "✗ BAN this map - Opponent favored" : "○ Risky map - Be careful"}
+                                                                {ma.recommendation === "PICK" ? "✓ Bu haritayı SEÇ - Avantaj sende" : ma.recommendation === "BAN" ? "✗ Bu haritayı BANLA - Rakip avantajlı" : "○ Riskli harita - Dikkatli ol"}
                                                             </div>
 
                                                             {/* AI Prediction Button */}
@@ -738,13 +738,13 @@ export default function MatchAnalyzerPage() {
                                         <CardContent className="p-3">
                                             <div className="flex items-center gap-1.5 mb-2">
                                                 <TrendingUp className="h-4 w-4 text-emerald-400" />
-                                                <span className="font-medium text-sm text-emerald-400">Best Picks</span>
+                                                <span className="font-medium text-sm text-emerald-400">En İyi Seçimler</span>
                                             </div>
                                             <div className="space-y-0.5 text-sm">
                                                 {mapAnalysis.filter(m => m.recommendation === "PICK").length > 0 ?
                                                     mapAnalysis.filter(m => m.recommendation === "PICK").map(m => (
                                                         <div key={m.map} className="flex justify-between"><span>{m.map}</span><span className="text-emerald-400">+{m.scoreDiff.toFixed(0)}</span></div>
-                                                    )) : <p className="text-muted-foreground text-xs">No strong picks</p>
+                                                    )) : <p className="text-muted-foreground text-xs">Güçlü seçim yok</p>
                                                 }
                                             </div>
                                         </CardContent>
@@ -754,13 +754,13 @@ export default function MatchAnalyzerPage() {
                                         <CardContent className="p-3">
                                             <div className="flex items-center gap-1.5 mb-2">
                                                 <TrendingDown className="h-4 w-4 text-rose-400" />
-                                                <span className="font-medium text-sm text-rose-400">Must Ban</span>
+                                                <span className="font-medium text-sm text-rose-400">Mutlaka Banla</span>
                                             </div>
                                             <div className="space-y-0.5 text-sm">
                                                 {mapAnalysis.filter(m => m.recommendation === "BAN").length > 0 ?
                                                     mapAnalysis.filter(m => m.recommendation === "BAN").map(m => (
                                                         <div key={m.map} className="flex justify-between"><span>{m.map}</span><span className="text-rose-400">{m.scoreDiff.toFixed(0)}</span></div>
-                                                    )) : <p className="text-muted-foreground text-xs">No critical bans</p>
+                                                    )) : <p className="text-muted-foreground text-xs">Kritik ban yok</p>
                                                 }
                                             </div>
                                         </CardContent>

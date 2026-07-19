@@ -106,9 +106,9 @@ export default function SettingsPanel({ position = "bottom-right" }: SettingsPan
                                     )}
                                 </div>
                                 <div className="flex-1 text-left">
-                                    <p className="text-sm font-medium">Theme</p>
+                                    <p className="text-sm font-medium">Tema</p>
                                     <p className="text-xs text-muted-foreground">
-                                        {theme === "dark" ? "Dark Mode" : "Light Mode"}
+                                        {theme === "dark" ? "Koyu Mod" : "Açık Mod"}
                                     </p>
                                 </div>
                                 <Palette className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
@@ -126,8 +126,8 @@ export default function SettingsPanel({ position = "bottom-right" }: SettingsPan
                                     <Globe className="h-4 w-4 text-blue-400" />
                                 </div>
                                 <div className="flex-1 text-left">
-                                    <p className="text-sm font-medium">Language</p>
-                                    <p className="text-xs text-muted-foreground">English (Coming soon)</p>
+                                    <p className="text-sm font-medium">Dil</p>
+                                    <p className="text-xs text-muted-foreground">Türkçe</p>
                                 </div>
                             </motion.button>
 
@@ -147,9 +147,9 @@ export default function SettingsPanel({ position = "bottom-right" }: SettingsPan
                                     )}
                                 </div>
                                 <div className="flex-1 text-left">
-                                    <p className="text-sm font-medium">Clear Cache</p>
+                                    <p className="text-sm font-medium">Önbelleği Temizle</p>
                                     <p className="text-xs text-muted-foreground">
-                                        {cacheCleared ? "Cache cleared!" : "Remove saved player data"}
+                                        {cacheCleared ? "Önbellek temizlendi!" : "Kayıtlı oyuncu verisini sil"}
                                     </p>
                                 </div>
                             </motion.button>

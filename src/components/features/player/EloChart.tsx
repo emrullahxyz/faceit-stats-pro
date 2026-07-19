@@ -43,10 +43,10 @@ export function EloChart({ playerId, playerNickname }: EloChartProps) {
     const header = (
         <div className="flex flex-col gap-1">
             <span className="font-mono text-[10px] tracking-[0.24em] text-muted-foreground">
-                ELO HISTORY
+                ELO GEÇMİŞİ
             </span>
             <span className="text-[17px] font-bold">
-                {playerNickname}&apos;s progression
+                {playerNickname} · Elo gelişimi
             </span>
         </div>
     );
@@ -69,7 +69,7 @@ export function EloChart({ playerId, playerNickname }: EloChartProps) {
                 {header}
                 <div className="flex items-center justify-center py-12">
                     <span className="text-muted-foreground">
-                        {error ? error.message : "No ELO history available"}
+                        {error ? error.message : "Elo geçmişi bulunamadı"}
                     </span>
                 </div>
             </section>
@@ -101,7 +101,7 @@ export function EloChart({ playerId, playerNickname }: EloChartProps) {
                     className={`font-mono text-xs ${eloChange >= 0 ? "text-success" : "text-danger"}`}
                 >
                     {eloChange >= 0 ? "▲ +" : "▼ "}
-                    {eloChange} this window
+                    {eloChange} bu aralıkta
                 </span>
             </div>
 
@@ -148,7 +148,7 @@ export function EloChart({ playerId, playerNickname }: EloChartProps) {
                                 boxShadow: "0 0 24px rgba(0,229,255,0.15)",
                             }}
                             labelStyle={{ color: "#8A93A0" }}
-                            formatter={(value) => [`${value} ELO`, "Rating"]}
+                            formatter={(value) => [`${value} ELO`, "Puan"]}
                         />
                         <Area
                             type="monotone"
@@ -165,9 +165,9 @@ export function EloChart({ playerId, playerNickname }: EloChartProps) {
 
             {/* LOW / count / PEAK footer */}
             <div className="mt-2.5 flex justify-between font-mono text-[11px] text-text-faint">
-                <span>{minElo} LOW</span>
-                <span>{eloHistory.length} MATCHES · CURRENT {currentElo}</span>
-                <span>{maxElo} PEAK</span>
+                <span>{minElo} DİP</span>
+                <span>{eloHistory.length} MAÇ · GÜNCEL {currentElo}</span>
+                <span>{maxElo} ZİRVE</span>
             </div>
         </section>
     );

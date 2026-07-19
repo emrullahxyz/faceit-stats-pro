@@ -23,9 +23,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Faceit Stats Pro - CS2 Player Statistics",
-  description: "View detailed Counter-Strike 2 player statistics, match history, and compare players on Faceit.",
-  keywords: ["faceit", "cs2", "counter-strike", "statistics", "elo", "player stats"],
+  title: "Faceit Stats Pro - CS2 Oyuncu İstatistikleri",
+  description: "Counter-Strike 2 oyuncularının detaylı Faceit istatistiklerini, maç geçmişini görüntüle ve oyuncuları karşılaştır.",
+  keywords: ["faceit", "cs2", "counter-strike", "istatistik", "elo", "oyuncu istatistikleri"],
 };
 
 export default function RootLayout({

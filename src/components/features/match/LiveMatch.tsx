@@ -158,7 +158,7 @@ export function LiveMatch({ playerId, playerNickname }: LiveMatchProps) {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Gamepad2 className="h-5 w-5 text-[#ff5500] animate-pulse" />
-                        <CardTitle className="text-lg">Live Match</CardTitle>
+                        <CardTitle className="text-lg">Canlı Maç</CardTitle>
                         <Badge variant="outline" className="border-green-500 text-green-500 animate-pulse">
                             {match.status}
                         </Badge>
@@ -167,7 +167,7 @@ export function LiveMatch({ playerId, playerNickname }: LiveMatchProps) {
                         <Link href={`/match-analyzer?matchId=${match.match_id}`}>
                             <Button variant="default" size="sm" className="gap-1 bg-[#ff5500] hover:bg-[#ff5500]/80">
                                 <Gamepad2 className="h-4 w-4" />
-                                Analyze Match
+                                Maçı Analiz Et
                             </Button>
                         </Link>
                         <a
@@ -177,7 +177,7 @@ export function LiveMatch({ playerId, playerNickname }: LiveMatchProps) {
                         >
                             <Button variant="ghost" size="sm" className="gap-1 text-[#ff5500]">
                                 <ExternalLink className="h-4 w-4" />
-                                View on Faceit
+                                Faceit&apos;te Aç
                             </Button>
                         </a>
                     </div>
@@ -187,17 +187,17 @@ export function LiveMatch({ playerId, playerNickname }: LiveMatchProps) {
                 {/* Match Overview */}
                 <div className="grid grid-cols-3 gap-4 items-center text-center">
                     <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Your Team</p>
+                        <p className="text-sm text-muted-foreground">Takımın</p>
                         <p className="font-semibold text-green-400">{playerTeam.nickname}</p>
                     </div>
                     <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">Map</p>
+                        <p className="text-xs text-muted-foreground">Harita</p>
                         <Badge variant="secondary" className="text-sm">
                             {selectedMap || "TBD"}
                         </Badge>
                     </div>
                     <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Opponent</p>
+                        <p className="text-sm text-muted-foreground">Rakip</p>
                         <p className="font-semibold text-red-400">{opponentTeam.nickname}</p>
                     </div>
                 </div>
@@ -206,13 +206,13 @@ export function LiveMatch({ playerId, playerNickname }: LiveMatchProps) {
                 <div className="border-t border-border/30 pt-4">
                     <div className="flex items-center gap-2 mb-3">
                         <Users className="h-4 w-4 text-muted-foreground" />
-                        <h3 className="font-semibold text-sm">Opponent Analysis</h3>
+                        <h3 className="font-semibold text-sm">Rakip Analizi</h3>
                         {loadingAnalysis && <Loader2 className="h-4 w-4 animate-spin" />}
                     </div>
 
                     {selectedMap && selectedMapStats && (
                         <div className="mb-4 p-3 rounded-lg bg-secondary/30">
-                            <p className="text-xs text-muted-foreground mb-1">Team avg on {selectedMap}</p>
+                            <p className="text-xs text-muted-foreground mb-1">{selectedMap} takım ortalaması</p>
                             <div className="flex gap-4">
                                 <div className="flex items-center gap-1">
                                     {selectedMapStats.avgWinRate >= 50 ? (

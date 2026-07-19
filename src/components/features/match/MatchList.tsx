@@ -36,6 +36,7 @@ const MAP_TILES: Record<string, string> = {
     nuke: "linear-gradient(135deg,#5A6E3A,#28331C)",
     ancient: "linear-gradient(135deg,#3A6E52,#16332A)",
     anubis: "linear-gradient(135deg,#6E663A,#33301C)",
+    cache: "linear-gradient(135deg,#4A6E5E,#1C332B)",
     dust2: "linear-gradient(135deg,#6E5E3A,#332C16)",
     vertigo: "linear-gradient(135deg,#4A4A6E,#1F1F33)",
     overpass: "linear-gradient(135deg,#3A6E6E,#163333)",
@@ -46,14 +47,14 @@ const DEFAULT_TILE = "linear-gradient(135deg,#44505A,#1A2026)";
 function timeAgo(timestamp: number): string {
     const diff = Date.now() - timestamp * 1000;
     const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${Math.max(mins, 1)}m ago`;
+    if (mins < 60) return `${Math.max(mins, 1)} dk önce`;
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
+    if (hours < 24) return `${hours} sa önce`;
     const days = Math.floor(hours / 24);
-    if (days === 1) return "yesterday";
-    if (days < 7) return `${days}d ago`;
+    if (days === 1) return "dün";
+    if (days < 7) return `${days} gün önce`;
     const weeks = Math.floor(days / 7);
-    return weeks === 1 ? "1w ago" : `${weeks}w ago`;
+    return `${weeks} hf önce`;
 }
 
 export function MatchList({ matches, currentPlayerId, playerNickname = "" }: MatchListProps) {
@@ -235,10 +236,10 @@ export function MatchList({ matches, currentPlayerId, playerNickname = "" }: Mat
         return (
             <section className="hud-glass p-7">
                 <span className="font-mono text-[10px] tracking-[0.24em] text-muted-foreground">
-                    MATCH HISTORY
+                    MAÇ GEÇMİŞİ
                 </span>
                 <p className="py-8 text-center text-muted-foreground">
-                    No recent matches found.
+                    Yakın zamanda oynanmış maç bulunamadı.
                 </p>
             </section>
         );
@@ -250,10 +251,10 @@ export function MatchList({ matches, currentPlayerId, playerNickname = "" }: Mat
             <div className="flex items-center justify-between px-7 pb-4 pt-6">
                 <div className="flex flex-col gap-1">
                     <span className="font-mono text-[10px] tracking-[0.24em] text-muted-foreground">
-                        MATCH HISTORY
+                        MAÇ GEÇMİŞİ
                     </span>
                     <span className="text-[17px] font-bold">
-                        Last {matches.length} matches
+                        Son {matches.length} maç
                     </span>
                 </div>
                 {playerNickname && (
@@ -263,7 +264,7 @@ export function MatchList({ matches, currentPlayerId, playerNickname = "" }: Mat
                         rel="noopener noreferrer"
                         className="flex items-center gap-1.5 font-mono text-[11px] tracking-[0.12em] text-orange-light transition-colors hover:text-orange"
                     >
-                        FULL HISTORY
+                        TÜM GEÇMİŞ
                         <ExternalLink className="h-3 w-3" />
                     </a>
                 )}
@@ -273,14 +274,14 @@ export function MatchList({ matches, currentPlayerId, playerNickname = "" }: Mat
             <div
                 className={`${GRID} border-b border-white/[0.07] px-7 py-2 font-mono text-[10px] tracking-[0.16em] text-text-faint`}
             >
-                <span>MAP</span>
-                <span>SCORE</span>
-                <span>RESULT</span>
+                <span>HARİTA</span>
+                <span>SKOR</span>
+                <span>SONUÇ</span>
                 <span>K / D / A</span>
                 <span>ADR</span>
                 <span>HS%</span>
                 <span>K/R</span>
-                <span className="text-right">PLAYED</span>
+                <span className="text-right">TARİH</span>
             </div>
 
             {/* Rows */}
@@ -337,7 +338,7 @@ export function MatchList({ matches, currentPlayerId, playerNickname = "" }: Mat
                                         : "border border-danger/35 bg-danger/[0.08] text-danger"
                                 }`}
                             >
-                                {won ? "WIN" : "LOSS"}
+                                {won ? "GALİP" : "MAĞLUP"}
                             </span>
 
                             {/* K/D/A, ADR, HS%, K/R */}
@@ -357,7 +358,7 @@ export function MatchList({ matches, currentPlayerId, playerNickname = "" }: Mat
                                 </span>
                                 <button
                                     onClick={(e) => handleViewOnFaceit(e, match.faceit_url)}
-                                    title="View on Faceit"
+                                    title="Faceit'te aç"
                                     className="text-text-faint transition-colors hover:text-orange-light"
                                 >
                                     <ExternalLink className="h-3 w-3" />

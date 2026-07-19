@@ -40,16 +40,16 @@ export function Navbar() {
         {/* Desktop: links + compact search */}
         <div className="hidden items-center gap-[22px] md:flex">
           <Link href="/match-analyzer" className={navLink}>
-            Analyze
+            Analiz
           </Link>
           <Link href="/compare" className={navLink}>
-            Compare
+            Karşılaştır
           </Link>
           <form onSubmit={handleSearch} className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-faint" />
             <input
               type="text"
-              placeholder="Search player"
+              placeholder="Oyuncu ara"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-[34px] w-[210px] rounded-[10px] border border-white/10 bg-white/[0.04] pl-[34px] pr-3 text-[13px] text-foreground outline-none transition-[border-color,box-shadow] duration-200 focus:border-cyan/70 focus:shadow-[0_0_18px_rgba(0,229,255,0.25)]"
@@ -75,7 +75,7 @@ export function Navbar() {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-faint" />
             <input
               type="text"
-              placeholder="Search player"
+              placeholder="Oyuncu ara"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-11 w-full rounded-[10px] border border-white/10 bg-white/[0.04] pl-10 pr-3 text-sm text-foreground outline-none focus:border-cyan/70"
@@ -87,14 +87,14 @@ export function Navbar() {
               className={navLink}
               onClick={() => setIsMenuOpen(false)}
             >
-              Analyze Match
+              Maç Analizi
             </Link>
             <Link
               href="/compare"
               className={navLink}
               onClick={() => setIsMenuOpen(false)}
             >
-              Compare Players
+              Oyuncu Karşılaştır
             </Link>
             <div className="mt-1">
               <AuthButtons />

@@ -57,6 +57,7 @@ const MAP_TILES: Record<string, string> = {
     nuke: "linear-gradient(135deg,#5A6E3A,#28331C)",
     ancient: "linear-gradient(135deg,#3A6E52,#16332A)",
     anubis: "linear-gradient(135deg,#6E663A,#33301C)",
+    cache: "linear-gradient(135deg,#4A6E5E,#1C332B)",
     dust2: "linear-gradient(135deg,#6E5E3A,#332C16)",
     vertigo: "linear-gradient(135deg,#4A4A6E,#1F1F33)",
     overpass: "linear-gradient(135deg,#3A6E6E,#163333)",
@@ -103,13 +104,13 @@ export default function MatchPage() {
             try {
                 setLoading(true);
                 const matchRes = await fetch(`/api/match/${matchId}`);
-                if (!matchRes.ok) throw new Error("Match not found");
+                if (!matchRes.ok) throw new Error("Maç bulunamadı.");
                 setMatch(await matchRes.json());
 
                 const statsRes = await fetch(`/api/match-stats/${matchId}`);
                 if (statsRes.ok) setStats(await statsRes.json());
             } catch (err) {
-                setError(err instanceof Error ? err.message : "Failed to load");
+                setError(err instanceof Error ? err.message : "Maç yüklenemedi.");
             } finally {
                 setLoading(false);
             }
@@ -135,14 +136,14 @@ export default function MatchPage() {
         return (
             <div className="mx-auto max-w-[1280px] px-5 py-16 text-center">
                 <Gamepad2 className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
-                <h1 className="mb-2 text-2xl font-bold">Match Not Found</h1>
+                <h1 className="mb-2 text-2xl font-bold">Maç Bulunamadı</h1>
                 <p className="mb-6 text-muted-foreground">{error}</p>
                 <button
                     onClick={() => router.back()}
                     className="inline-flex h-[42px] items-center gap-2 rounded-xl border border-white/[0.14] bg-white/[0.04] px-5 text-sm font-semibold transition-colors hover:border-cyan/60"
                 >
                     <ChevronLeft className="h-4 w-4" />
-                    Back
+                    Geri
                 </button>
             </div>
         );
@@ -171,8 +172,8 @@ export default function MatchPage() {
     })();
 
     const dateMeta = `${new Date(match.finished_at * 1000)
-        .toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-        .toUpperCase()} · ${new Date(match.started_at * 1000).toLocaleTimeString("en-US", {
+        .toLocaleDateString("tr-TR", { month: "short", day: "numeric", year: "numeric" })
+        .toUpperCase()} · ${new Date(match.started_at * 1000).toLocaleTimeString("tr-TR", {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
@@ -233,14 +234,14 @@ export default function MatchPage() {
                             isWinner ? "text-success" : "text-text-faint"
                         }`}
                     >
-                        {isWinner ? "WINNER" : "DEFEAT"}
+                        {isWinner ? "GALİP" : "MAĞLUP"}
                     </span>
                 </div>
                 {/* Column heads */}
                 <div
                     className={`${SCOREBOARD_GRID} relative border-b border-white/[0.07] px-5 py-2 font-mono text-[10px] tracking-[0.14em] text-text-faint`}
                 >
-                    <span>PLAYER</span>
+                    <span>OYUNCU</span>
                     <span className="text-right text-cyan">K ▼</span>
                     <span className="text-right">D</span>
                     <span className="text-right">A</span>
@@ -279,7 +280,7 @@ export default function MatchPage() {
                                     </span>
                                     {isMvp && (
                                         <span
-                                            title="Match MVP"
+                                            title="Maçın MVP'si"
                                             className="flex flex-none items-center gap-1 rounded-full border border-orange/50 bg-orange/[0.09] px-2 py-[2px] font-mono text-[9px] font-bold tracking-[0.1em] text-orange-light shadow-[0_0_12px_rgba(255,85,0,0.25)]"
                                         >
                                             <Crown className="h-[10px] w-[10px]" />
@@ -330,7 +331,7 @@ export default function MatchPage() {
                     className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-cyan"
                 >
                     <ChevronLeft className="h-4 w-4" />
-                    Back
+                    Geri
                 </button>
 
                 {/* Score header */}
@@ -382,7 +383,7 @@ export default function MatchPage() {
                                 <span
                                     className={`font-mono text-[10px] tracking-[0.16em] ${isTeam1Winner ? "text-success" : "text-text-faint"}`}
                                 >
-                                    {isTeam1Winner ? "WINNER" : "DEFEAT"}
+                                    {isTeam1Winner ? "GALİP" : "MAĞLUP"}
                                 </span>
                             </div>
                             <span className="pb-3.5 font-mono text-[26px] text-text-faint">:</span>
@@ -404,7 +405,7 @@ export default function MatchPage() {
                                 <span
                                     className={`font-mono text-[10px] tracking-[0.16em] ${!isTeam1Winner ? "text-success" : "text-text-faint"}`}
                                 >
-                                    {!isTeam1Winner ? "WINNER" : "DEFEAT"}
+                                    {!isTeam1Winner ? "GALİP" : "MAĞLUP"}
                                 </span>
                             </div>
                         </div>
@@ -417,7 +418,7 @@ export default function MatchPage() {
                                 rel="noopener noreferrer"
                                 className="flex h-[42px] items-center gap-[9px] rounded-xl border border-orange/55 bg-orange/[0.08] px-5 text-sm font-semibold text-orange-light transition-[box-shadow,background-color,color] duration-200 hover:bg-orange/[0.14] hover:text-[#FF9A66] hover:shadow-[0_0_22px_rgba(255,85,0,0.3)]"
                             >
-                                Open on Faceit
+                                Faceit&apos;te Aç
                                 <ExternalLink className="h-3.5 w-3.5" />
                             </a>
                         </div>

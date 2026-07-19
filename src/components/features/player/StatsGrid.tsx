@@ -21,19 +21,19 @@ export function StatsGrid({ stats }: StatsGridProps) {
 
     const statItems = [
         {
-            label: "K/D RATIO",
+            label: "K/D ORANI",
             value: findStat(lifetime, ["Average K/D Ratio", "K/D Ratio", "KD Ratio", "kd_ratio"]),
             decimals: 2,
             suffix: "",
         },
         {
-            label: "WIN RATE",
+            label: "KAZANMA ORANI",
             value: findStat(lifetime, ["Win Rate %", "Winrate", "Win rate %", "win_rate"]),
             decimals: 1,
             suffix: "%",
         },
         {
-            label: "HEADSHOT %",
+            label: "HS %",
             value: findStat(lifetime, ["Average Headshots %", "Headshots %", "Headshot %", "hs_rate"]),
             decimals: 1,
             suffix: "%",
@@ -45,13 +45,13 @@ export function StatsGrid({ stats }: StatsGridProps) {
             suffix: "",
         },
         {
-            label: "MATCHES",
+            label: "MAÇ",
             value: findStat(lifetime, ["Matches", "Total Matches", "matches"]),
             decimals: 0,
             suffix: "",
         },
         {
-            label: "BEST STREAK",
+            label: "EN İYİ SERİ",
             value: findStat(lifetime, ["Longest Win Streak", "Best Streak", "longest_win_streak"]),
             decimals: 0,
             suffix: "",

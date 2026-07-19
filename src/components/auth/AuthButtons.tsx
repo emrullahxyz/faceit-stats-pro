@@ -19,7 +19,7 @@ export function AuthButtons() {
     if (status === "loading") {
         return (
             <Button variant="ghost" size="sm" disabled>
-                Loading...
+                Yükleniyor...
             </Button>
         );
     }
@@ -46,13 +46,13 @@ export function AuthButtons() {
                     <DropdownMenuItem asChild>
                         <Link href={`/player/${session.user.name}`} className="cursor-pointer">
                             <BarChart3 className="mr-2 h-4 w-4" />
-                            My Stats
+                            İstatistiklerim
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                         <Link href="/profile" className="cursor-pointer">
                             <User className="mr-2 h-4 w-4" />
-                            Profile
+                            Profil
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -61,7 +61,7 @@ export function AuthButtons() {
                         onClick={() => signOut()}
                     >
                         <LogOut className="mr-2 h-4 w-4" />
-                        Sign Out
+                        Çıkış Yap
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -76,7 +76,7 @@ export function AuthButtons() {
             onClick={() => signIn("faceit")}
         >
             <User className="h-4 w-4" />
-            Login
+            Giriş
         </Button>
     );
 }

@@ -8,26 +8,26 @@ import { GlowCard } from "@/components/ui/glow-card";
 const FEATURES = [
   {
     icon: BarChart3,
-    title: "Player Stats",
-    description: "Elo, K/D, ADR and 40+ metrics tracked across every queue you play.",
+    title: "Oyuncu İstatistikleri",
+    description: "Elo, K/D, ADR ve 40+ metrik — oynadığın her sırada takipte.",
     href: undefined as string | undefined,
   },
   {
     icon: Crosshair,
-    title: "Match Analysis",
-    description: "Full scoreboards with per-player breakdowns for every map.",
+    title: "Maç Analizi",
+    description: "Her harita için oyuncu bazında tam skor tablosu.",
     href: "/match-analyzer" as string | undefined,
   },
   {
     icon: ArrowLeftRight,
-    title: "PvP Compare",
-    description: "Head-to-head stat duels. Settle the argument with data.",
+    title: "PvP Karşılaştırma",
+    description: "Kafa kafaya istatistik düellosu. Tartışmayı veriyle bitir.",
     href: "/compare" as string | undefined,
   },
   {
     icon: Activity,
-    title: "Live Match",
-    description: "Scout the lobby while the knife round is still loading.",
+    title: "Canlı Maç",
+    description: "Daha bıçak raundu yüklenirken lobiyi keşfet.",
     href: undefined as string | undefined,
   },
 ];
@@ -58,13 +58,13 @@ export default function HomePage() {
       {/* Hero */}
       <section className="relative flex min-h-[78vh] flex-col items-center justify-center gap-[26px] px-6 pb-[70px] pt-[90px] text-center">
         <div className="font-mono text-xs tracking-[0.32em] text-cyan glow-text-cyan">
-          CS2 · FACEIT · REAL-TIME ANALYTICS
+          CS2 · FACEIT · CANLI ANALİZ
         </div>
         <h1 className="gradient-headline m-0 max-w-[860px] text-[clamp(32px,6vw,68px)] font-extrabold leading-[1.05] tracking-[-0.02em]">
-          Your stats, weaponized.
+          İstatistiklerin, silahın.
         </h1>
         <p className="m-0 max-w-[520px] text-lg font-light text-muted-foreground">
-          Deep Faceit analytics for players who queue to win.
+          Kazanmak için sıraya giren oyuncular için derin Faceit analizi.
         </p>
 
         {/* Glowing hero search */}
@@ -75,7 +75,7 @@ export default function HomePage() {
           <Search className="pointer-events-none absolute left-[22px] top-1/2 h-5 w-5 -translate-y-1/2 text-cyan drop-shadow-[0_0_6px_rgba(0,229,255,0.6)]" />
           <input
             type="text"
-            placeholder="Enter Faceit nickname..."
+            placeholder="Faceit nickname'i gir..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={(e) => e.currentTarget.select()}
@@ -85,7 +85,7 @@ export default function HomePage() {
             type="submit"
             className="absolute right-4 top-1/2 -translate-y-1/2 rounded-md border border-white/10 px-2 py-1 font-mono text-[11px] text-text-faint transition-colors hover:border-cyan/60 hover:text-cyan"
           >
-            ⏎ SEARCH
+            ⏎ ARA
           </button>
         </form>
       </section>
@@ -93,7 +93,7 @@ export default function HomePage() {
       {/* Bento strip */}
       <section className="relative mx-auto max-w-[1280px] px-6 pb-10 sm:px-10">
         <h2 className="m-0 mb-5 text-[15px] font-semibold tracking-[0.22em] text-muted-foreground">
-          WHAT&apos;S INSIDE
+          NELER VAR
         </h2>
         <div className="grid grid-cols-1 gap-[22px] sm:grid-cols-2 lg:grid-cols-4">
           {FEATURES.map((f) => (
@@ -110,7 +110,7 @@ export default function HomePage() {
                 {f.description}
               </div>
               <div className="mt-auto font-mono text-[11px] tracking-[0.14em] text-cyan">
-                EXPLORE →
+                KEŞFET →
               </div>
             </GlowCard>
           ))}

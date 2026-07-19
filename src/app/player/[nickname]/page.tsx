@@ -29,13 +29,13 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
                             <AlertCircle className="h-8 w-8 text-destructive" />
                         </div>
                         <h2 className="text-xl font-semibold text-foreground mb-2">
-                            Unable to Load Player
+                            Oyuncu Yüklenemedi
                         </h2>
                         <p className="text-muted-foreground mb-6">{error}</p>
                         <Link href="/">
                             <Button variant="outline" className="gap-2">
                                 <Search className="h-4 w-4" />
-                                Search Again
+                                Tekrar Ara
                             </Button>
                         </Link>
                     </CardContent>
@@ -94,6 +94,6 @@ export async function generateMetadata({ params }: PlayerPageProps) {
 
     return {
         title: `${decodedNickname} - Faceit Stats Pro`,
-        description: `View ${decodedNickname}'s Faceit statistics, ELO history, and recent matches.`,
+        description: `${decodedNickname} oyuncusunun Faceit istatistikleri, Elo geçmişi ve son maçları.`,
     };
 }

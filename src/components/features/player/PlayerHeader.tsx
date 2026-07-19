@@ -38,14 +38,14 @@ export function PlayerHeader({ player, onLiveMatchFound }: PlayerHeaderProps) {
                 onLiveMatchFound?.(data.matchId);
                 window.location.href = `/match-analyzer?matchId=${data.matchId}`;
             } else {
-                toast.info("Not in a match", {
-                    description: `${player.nickname} is not currently playing a match.`,
+                toast.info("Maçta değil", {
+                    description: `${player.nickname} şu anda bir maçta değil.`,
                 });
             }
         } catch (error) {
             console.error("Error checking live match:", error);
-            toast.error("Failed to check live match", {
-                description: "Please try again later.",
+            toast.error("Canlı maç kontrol edilemedi", {
+                description: "Lütfen daha sonra tekrar deneyin.",
             });
         } finally {
             setCheckingLive(false);
@@ -95,7 +95,7 @@ export function PlayerHeader({ player, onLiveMatchFound }: PlayerHeaderProps) {
             {/* Current Elo */}
             <div className="flex flex-col gap-1">
                 <span className="font-mono text-[10px] tracking-[0.24em] text-muted-foreground">
-                    CURRENT ELO
+                    GÜNCEL ELO
                 </span>
                 <span className="tabular font-mono text-[38px] font-bold leading-none text-cyan glow-text-cyan">
                     <CountUp value={elo} />
@@ -108,7 +108,7 @@ export function PlayerHeader({ player, onLiveMatchFound }: PlayerHeaderProps) {
                     {level}
                 </div>
                 <span className="font-mono text-[9px] tracking-[0.2em] text-muted-foreground">
-                    LEVEL
+                    SEVİYE
                 </span>
             </div>
 
@@ -119,7 +119,7 @@ export function PlayerHeader({ player, onLiveMatchFound }: PlayerHeaderProps) {
                     className="flex h-[42px] items-center gap-[9px] rounded-xl border border-cyan/50 bg-cyan/[0.08] px-5 text-sm font-semibold text-cyan transition-[box-shadow,background-color,color] duration-200 hover:bg-cyan/[0.14] hover:text-cyan-bright hover:shadow-[0_0_22px_rgba(0,229,255,0.3)]"
                 >
                     <ArrowLeftRight className="h-[15px] w-[15px]" />
-                    Compare
+                    Karşılaştır
                 </Link>
                 <button
                     onClick={checkForLiveMatch}
@@ -131,7 +131,7 @@ export function PlayerHeader({ player, onLiveMatchFound }: PlayerHeaderProps) {
                     ) : (
                         <Gamepad2 className="h-[15px] w-[15px] text-orange" />
                     )}
-                    {checkingLive ? "Checking..." : "Live Match"}
+                    {checkingLive ? "Kontrol ediliyor..." : "Canlı Maç"}
                 </button>
             </div>
         </section>

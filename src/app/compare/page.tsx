@@ -102,7 +102,7 @@ function VersusColumn({
                     winCount > totalStats / 2 ? (isP1 ? "text-cyan" : "text-violet-light") : "text-muted-foreground"
                 }`}
             >
-                WINNING {winCount} OF {totalStats} STATS
+                {totalStats} İSTATİSTİKTEN {winCount}&apos;İNDE ÖNDE
             </div>
         </div>
     );
@@ -196,7 +196,7 @@ export default function ComparePage() {
     };
 
     const formatDate = (timestamp: number) => {
-        return new Date(timestamp * 1000).toLocaleDateString("en-US", {
+        return new Date(timestamp * 1000).toLocaleDateString("tr-TR", {
             month: "short",
             day: "numeric",
             year: "numeric",
@@ -217,25 +217,25 @@ export default function ComparePage() {
                           fmt: (n: number) => n.toLocaleString("en-US"),
                       },
                       {
-                          label: "K/D RATIO",
+                          label: "K/D ORANI",
                           v1: parseFloat(findStat(p1.stats?.lifetime, ["Average K/D Ratio", "K/D Ratio"])),
                           v2: parseFloat(findStat(p2.stats?.lifetime, ["Average K/D Ratio", "K/D Ratio"])),
                           fmt: (n: number) => n.toFixed(2),
                       },
                       {
-                          label: "WIN RATE",
+                          label: "KAZANMA ORANI",
                           v1: parseFloat(findStat(p1.stats?.lifetime, ["Win Rate %", "Winrate"])),
                           v2: parseFloat(findStat(p2.stats?.lifetime, ["Win Rate %", "Winrate"])),
                           fmt: (n: number) => `${n.toFixed(1)}%`,
                       },
                       {
-                          label: "HEADSHOT %",
+                          label: "HS %",
                           v1: parseFloat(findStat(p1.stats?.lifetime, ["Average Headshots %", "Headshots %"])),
                           v2: parseFloat(findStat(p2.stats?.lifetime, ["Average Headshots %", "Headshots %"])),
                           fmt: (n: number) => `${n.toFixed(1)}%`,
                       },
                       {
-                          label: "MATCHES",
+                          label: "MAÇ",
                           v1: parseInt(findStat(p1.stats?.lifetime, ["Matches", "Total Matches"])),
                           v2: parseInt(findStat(p2.stats?.lifetime, ["Matches", "Total Matches"])),
                           fmt: (n: number) => n.toLocaleString("en-US"),
@@ -271,10 +271,10 @@ export default function ComparePage() {
                 {/* Title */}
                 <div className="flex flex-col gap-2 text-center">
                     <div className="font-mono text-[11px] tracking-[0.3em] text-violet">
-                        HEAD TO HEAD
+                        KAFA KAFAYA
                     </div>
                     <h1 className="m-0 text-[38px] font-extrabold tracking-[-0.01em]">
-                        Settle it with data.
+                        Veriyle sonuçlandır.
                     </h1>
                 </div>
 
@@ -286,7 +286,7 @@ export default function ComparePage() {
                     <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-[1fr_auto_1fr] sm:gap-[26px]">
                         <input
                             type="text"
-                            placeholder="Player 1 nickname..."
+                            placeholder="1. oyuncunun nickname'i..."
                             value={player1}
                             onChange={(e) => setPlayer1(e.target.value)}
                             className="h-[58px] rounded-[14px] border border-cyan/30 bg-[rgba(12,14,17,0.72)] px-[22px] text-base text-foreground outline-none backdrop-blur-[14px] [box-shadow:0_0_24px_rgba(0,229,255,0.06)] focus:animate-pulse-glow sm:text-right"
@@ -296,7 +296,7 @@ export default function ComparePage() {
                         </div>
                         <input
                             type="text"
-                            placeholder="Player 2 nickname..."
+                            placeholder="2. oyuncunun nickname'i..."
                             value={player2}
                             onChange={(e) => setPlayer2(e.target.value)}
                             className="h-[58px] rounded-[14px] border border-violet/35 bg-[rgba(12,14,17,0.72)] px-[22px] text-base text-foreground outline-none backdrop-blur-[14px] [box-shadow:0_0_24px_rgba(139,92,246,0.07)] focus:animate-pulse-glow"
@@ -308,7 +308,7 @@ export default function ComparePage() {
                         className="flex h-12 items-center gap-2 self-center rounded-full bg-gradient-to-r from-cyan to-[#4FC3F7] px-[42px] text-[15px] font-bold tracking-[0.06em] text-[#04252B] shadow-[0_0_34px_rgba(0,229,255,0.35)] transition-[box-shadow,transform] duration-200 hover:-translate-y-px hover:shadow-[0_0_54px_rgba(0,229,255,0.55)] disabled:opacity-50 disabled:hover:translate-y-0"
                     >
                         {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                        {isPending ? "COMPARING..." : "COMPARE"}
+                        {isPending ? "KARŞILAŞTIRILIYOR..." : "KARŞILAŞTIR"}
                     </button>
                 </form>
 
@@ -397,15 +397,15 @@ export default function ComparePage() {
                     <div className="flex items-center gap-3.5 rounded-[14px] border border-warning/35 bg-warning/[0.07] px-5 py-3.5 shadow-[0_0_24px_rgba(255,180,0,0.05)]">
                         <TriangleAlert className="h-[18px] w-[18px] flex-none text-warning" />
                         <span className="text-[13.5px] text-warning-light">
-                            Couldn&apos;t load shared match history (Faceit API error). This is
-                            usually temporary.
+                            Ortak maç geçmişi yüklenemedi (Faceit API hatası). Bu genellikle
+                            geçicidir.
                         </span>
                         <button
                             onClick={runCompare}
                             disabled={isPending}
                             className="ml-auto h-[30px] flex-none rounded-lg border border-warning/40 px-3.5 font-mono text-[11px] tracking-[0.1em] text-warning transition-colors hover:bg-warning/10 disabled:opacity-50"
                         >
-                            RETRY
+                            TEKRAR DENE
                         </button>
                     </div>
                 )}
@@ -413,16 +413,16 @@ export default function ComparePage() {
                     <div className="flex items-center gap-3.5 rounded-[14px] border border-warning/35 bg-warning/[0.07] px-5 py-3.5 shadow-[0_0_24px_rgba(255,180,0,0.05)]">
                         <TriangleAlert className="h-[18px] w-[18px] flex-none text-warning" />
                         <span className="text-[13.5px] text-warning-light">
-                            Partial results — Faceit API rate limit reached. Checked{" "}
+                            Kısmi sonuçlar — Faceit API istek limitine takıldı. Son{" "}
                             {sharedInfo.checkedCounts.player1} + {sharedInfo.checkedCounts.player2}{" "}
-                            recent matches; some older matches may not have been scanned.
+                            maç tarandı; daha eski maçlar taranamamış olabilir.
                         </span>
                         <button
                             onClick={runCompare}
                             disabled={isPending}
                             className="ml-auto h-[30px] flex-none rounded-lg border border-warning/40 px-3.5 font-mono text-[11px] tracking-[0.1em] text-warning transition-colors hover:bg-warning/10 disabled:opacity-50"
                         >
-                            RETRY
+                            TEKRAR DENE
                         </button>
                     </div>
                 )}
@@ -434,21 +434,20 @@ export default function ComparePage() {
                             <div className="flex items-center justify-between px-7 pb-4 pt-6">
                                 <div className="flex flex-col gap-1">
                                     <span className="font-mono text-[10px] tracking-[0.24em] text-muted-foreground">
-                                        SHARED MATCH HISTORY
+                                        ORTAK MAÇ GEÇMİŞİ
                                     </span>
                                     <span className="text-[17px] font-bold">
-                                        {sharedMatches.length}{" "}
-                                        {sharedMatches.length === 1 ? "match" : "matches"} together
+                                        Birlikte {sharedMatches.length} maç
                                     </span>
                                 </div>
                                 <span className="hidden font-mono text-[11px] text-text-faint sm:block">
-                                    RESULTS RELATIVE TO {p1?.player.nickname.toUpperCase()}
+                                    SONUÇLAR {p1?.player.nickname.toUpperCase()} REFERANSLI
                                 </span>
                             </div>
                             <div className="grid grid-cols-[130px_90px_130px_1fr] gap-3 border-b border-white/[0.07] px-7 py-2 font-mono text-[10px] tracking-[0.16em] text-text-faint">
-                                <span>DATE</span>
-                                <span>RESULT</span>
-                                <span>RELATION</span>
+                                <span>TARİH</span>
+                                <span>SONUÇ</span>
+                                <span>İLİŞKİ</span>
                                 <span />
                             </div>
                             {sharedMatches.map((match) => (
@@ -468,7 +467,7 @@ export default function ComparePage() {
                                                 : "border border-danger/35 bg-danger/[0.08] text-danger"
                                         }`}
                                     >
-                                        {match.result}
+                                        {match.result === "WIN" ? "GALİP" : "MAĞLUP"}
                                     </span>
                                     <span
                                         className={`justify-self-start rounded-full px-2.5 py-[3px] font-mono text-[10.5px] font-bold tracking-[0.12em] ${
@@ -477,16 +476,16 @@ export default function ComparePage() {
                                                 : "border border-violet/40 bg-violet/[0.08] text-violet-light"
                                         }`}
                                     >
-                                        {match.sameTeam ? "ALLY" : "ENEMY"}
+                                        {match.sameTeam ? "MÜTTEFİK" : "RAKİP"}
                                     </span>
                                     <span className="flex items-center justify-end gap-3 font-mono text-[11px] text-text-faint">
-                                        VIEW MATCH →
+                                        MAÇI GÖR →
                                         <a
                                             href={cleanFaceitUrl(match.faceitUrl)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             onClick={(e) => e.stopPropagation()}
-                                            title="View on Faceit"
+                                            title="Faceit'te aç"
                                             className="text-text-faint transition-colors hover:text-orange-light"
                                         >
                                             <ExternalLink className="h-3.5 w-3.5" />
@@ -500,12 +499,12 @@ export default function ComparePage() {
                             <div className="flex h-[58px] w-[58px] items-center justify-center rounded-full border border-violet/30 bg-violet/[0.07]">
                                 <SearchX className="h-6 w-6 text-violet" />
                             </div>
-                            <div className="text-[17px] font-bold">No shared matches found</div>
+                            <div className="text-[17px] font-bold">Ortak maç bulunamadı</div>
                             <div className="max-w-[420px] text-[13.5px] font-light text-muted-foreground">
-                                These players haven&apos;t appeared in the same lobby in the last{" "}
-                                {sharedInfo?.checkedCounts.player1 ?? 0} matches of{" "}
-                                {p1?.player.nickname} and {sharedInfo?.checkedCounts.player2 ?? 0}{" "}
-                                matches of {p2?.player.nickname}.
+                                Bu oyuncular {p1?.player.nickname} adlı oyuncunun son{" "}
+                                {sharedInfo?.checkedCounts.player1 ?? 0} ve {p2?.player.nickname}{" "}
+                                adlı oyuncunun son {sharedInfo?.checkedCounts.player2 ?? 0} maçında
+                                aynı lobide görünmemiş.
                             </div>
                         </section>
                     )

@@ -59,12 +59,12 @@ export function MapAnalysis({ playerId }: MapAnalysisProps) {
         <div className="flex items-start justify-between gap-3">
             <div className="flex flex-col gap-1">
                 <span className="font-mono text-[10px] tracking-[0.24em] text-muted-foreground">
-                    MAP ANALYSIS
+                    HARİTA ANALİZİ
                 </span>
-                <span className="text-[17px] font-bold">Win rate per map</span>
+                <span className="text-[17px] font-bold">Harita başına kazanma oranı</span>
             </div>
             <div className="flex items-center gap-2">
-                <span className="font-mono text-[10px] text-text-faint">LAST</span>
+                <span className="font-mono text-[10px] text-text-faint">SON</span>
                 <Select value={matchCount} onValueChange={setMatchCount}>
                     <SelectTrigger className="h-7 w-[70px] text-xs">
                         <SelectValue />
@@ -100,7 +100,7 @@ export function MapAnalysis({ playerId }: MapAnalysisProps) {
                 {header}
                 <div className="flex flex-1 items-center justify-center py-10">
                     <span className="text-sm text-muted-foreground">
-                        Not enough map data yet
+                        Henüz yeterli harita verisi yok
                     </span>
                 </div>
             </section>
@@ -178,7 +178,7 @@ export function MapAnalysis({ playerId }: MapAnalysisProps) {
             </svg>
             {matchesAnalyzed > 0 && (
                 <span className="mt-1 text-center font-mono text-[11px] text-text-faint">
-                    {matchesAnalyzed} MATCHES ANALYZED
+                    {matchesAnalyzed} MAÇ ANALİZ EDİLDİ
                 </span>
             )}
         </section>

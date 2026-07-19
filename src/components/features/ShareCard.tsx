@@ -185,7 +185,7 @@ export default function ShareCard({ matchId, myTeamName, enemyTeamName, mapAnaly
                 {/* Preview */}
                 <div className="bg-gradient-to-br from-[#1a1a2e] to-[#16213e] rounded-lg p-4 mb-4 border border-[#ff5500]/30">
                     <div className="text-center mb-3">
-                        <span className="text-[#ff5500] font-bold">Match Analysis</span>
+                        <span className="text-[#ff5500] font-bold">Maç Analizi</span>
                     </div>
                     <div className="flex justify-between text-sm mb-2">
                         <span className="text-emerald-400">{myTeamName}</span>
@@ -193,7 +193,7 @@ export default function ShareCard({ matchId, myTeamName, enemyTeamName, mapAnaly
                         <span className="text-rose-400">{enemyTeamName}</span>
                     </div>
                     <div className="text-xs text-muted-foreground text-center">
-                        {mapAnalysis.length} maps analyzed
+                        {mapAnalysis.length} harita analiz edildi
                     </div>
                 </div>
 
@@ -205,7 +205,7 @@ export default function ShareCard({ matchId, myTeamName, enemyTeamName, mapAnaly
                         className="flex-1 bg-[#ff5500] hover:bg-[#cc4400]"
                     >
                         <Download className="h-4 w-4 mr-2" />
-                        {downloading ? "Generating..." : "Download Image"}
+                        {downloading ? "Oluşturuluyor..." : "Görseli İndir"}
                     </Button>
                     <Button
                         onClick={handleCopyLink}
@@ -213,9 +213,9 @@ export default function ShareCard({ matchId, myTeamName, enemyTeamName, mapAnaly
                         className="flex-1"
                     >
                         {copied ? (
-                            <><Check className="h-4 w-4 mr-2 text-emerald-400" />Copied!</>
+                            <><Check className="h-4 w-4 mr-2 text-emerald-400" />Kopyalandı!</>
                         ) : (
-                            <><Copy className="h-4 w-4 mr-2" />Copy Link</>
+                            <><Copy className="h-4 w-4 mr-2" />Bağlantıyı Kopyala</>
                         )}
                     </Button>
                 </div>

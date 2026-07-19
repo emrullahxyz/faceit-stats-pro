@@ -25,10 +25,10 @@ export default function PlayerError({
                         <AlertCircle className="h-8 w-8 text-destructive" />
                     </div>
                     <h2 className="text-xl font-semibold text-foreground mb-2">
-                        Failed to Load Player
+                        Oyuncu Yüklenemedi
                     </h2>
                     <p className="text-muted-foreground mb-6 text-sm">
-                        {error.message || "An unexpected error occurred while loading this player's stats."}
+                        {error.message || "Oyuncu istatistikleri yüklenirken beklenmeyen bir hata oluştu."}
                     </p>
                     <div className="flex flex-col gap-3 sm:flex-row">
                         <Button
@@ -36,12 +36,12 @@ export default function PlayerError({
                             className="gap-2 bg-[#ff5500] hover:bg-[#ff5500]/90"
                         >
                             <RefreshCw className="h-4 w-4" />
-                            Try Again
+                            Tekrar Dene
                         </Button>
                         <Link href="/">
                             <Button variant="outline" className="gap-2 w-full sm:w-auto">
                                 <Search className="h-4 w-4" />
-                                Search Players
+                                Oyuncu Ara
                             </Button>
                         </Link>
                     </div>
