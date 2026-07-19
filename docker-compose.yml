@@ -2,7 +2,12 @@ version: '3.8'
 
 services:
   faceit-stats:
-    build: .
+    build:
+      context: .
+      # The host resolves DNS through a local resolver on 127.0.0.1, which a
+      # bridged build container cannot reach (it points at itself), so npm
+      # installs fail with EAI_AGAIN. Build on the host network instead.
+      network: host
     container_name: faceit-stats-pro
     ports:
       - "127.0.0.1:3000:3000"
@@ -12,7 +17,8 @@ services:
       - ./prisma:/app/prisma
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:3000" ]
+      # 127.0.0.1, not localhost: the latter can resolve to ::1 and fail.
+      test: [ "CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000" ]
       interval: 30s
       timeout: 10s
       retries: 3
