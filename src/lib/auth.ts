@@ -61,7 +61,9 @@ export const authOptions: NextAuthOptions = {
         strategy: "jwt",
         maxAge: 30 * 24 * 60 * 60, // 30 days
     },
-    debug: true,
+    // Debug logging only in development: NextAuth warns against it in production
+    // (noisy, and can surface token/PII detail in server logs).
+    debug: process.env.NODE_ENV !== "production",
     callbacks: {
         async jwt({ token, account, profile }) {
             if (account && profile) {
