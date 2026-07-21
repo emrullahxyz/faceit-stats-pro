@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -343,9 +343,19 @@ export default function MatchAnalyzerPage() {
         }
     }, [matchUrl]);
 
+    // analyzeMatch is recreated whenever matchUrl changes, and this effect itself
+    // calls setMatchUrl — so leaving analyzeMatch as the trigger fired the whole
+    // analysis in a feedback loop (every player fetched 2-4× per visit, doubling
+    // API load and making the analyzer look hung). Guard on the matchId so a given
+    // room auto-analyzes exactly once.
+    const autoAnalyzedRef = useRef<string | null>(null);
     useEffect(() => {
         const matchIdFromUrl = searchParams.get("matchId");
-        if (matchIdFromUrl) { setMatchUrl(matchIdFromUrl); analyzeMatch(matchIdFromUrl); }
+        if (matchIdFromUrl && autoAnalyzedRef.current !== matchIdFromUrl) {
+            autoAnalyzedRef.current = matchIdFromUrl;
+            setMatchUrl(matchIdFromUrl);
+            analyzeMatch(matchIdFromUrl);
+        }
     }, [searchParams, analyzeMatch]);
 
     const searchPlayer = async () => {
