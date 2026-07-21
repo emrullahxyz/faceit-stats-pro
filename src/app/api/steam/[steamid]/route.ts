@@ -30,9 +30,12 @@ export async function GET(
             }, { status: 400 });
         }
 
-        // Fetch player summary
+        // Fetch player summary. ponytail: native AbortSignal.timeout — a hung
+        // Steam request must not stall the route (project rule: no timeout-less
+        // external HTTP calls).
         const summaryResponse = await fetch(
-            `${STEAM_API_BASE}/ISteamUser/GetPlayerSummaries/v2/?key=${STEAM_API_KEY}&steamids=${steamid}`
+            `${STEAM_API_BASE}/ISteamUser/GetPlayerSummaries/v2/?key=${STEAM_API_KEY}&steamids=${steamid}`,
+            { signal: AbortSignal.timeout(10_000) }
         );
 
         if (!summaryResponse.ok) {
@@ -54,7 +57,8 @@ export async function GET(
 
         // Fetch owned games for CS2 playtime
         const gamesResponse = await fetch(
-            `${STEAM_API_BASE}/IPlayerService/GetOwnedGames/v1/?key=${STEAM_API_KEY}&steamid=${steamid}&include_appinfo=1&include_played_free_games=1`
+            `${STEAM_API_BASE}/IPlayerService/GetOwnedGames/v1/?key=${STEAM_API_KEY}&steamid=${steamid}&include_appinfo=1&include_played_free_games=1`,
+            { signal: AbortSignal.timeout(10_000) }
         );
 
         let cs2Playtime = 0;
