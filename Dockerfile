@@ -5,6 +5,11 @@ WORKDIR /app
 # better-sqlite3 has no musl prebuilds, so Alpine must compile it from source
 RUN apk add --no-cache python3 make g++
 
+# Don't download puppeteer's bundled Chromium: it's glibc-only (breaks on musl)
+# and wouldn't be copied into the standalone runner anyway. The runner uses the
+# system chromium package instead.
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
 # Install dependencies
 COPY package*.json ./
 RUN npm ci
@@ -24,6 +29,13 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+
+# System Chromium for puppeteer (scrape-match live-match detection). The bundled
+# browser is skipped at install time, so provide the musl-native one and point
+# puppeteer at it.
+RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
+ENV PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Copy built application
 COPY --from=builder /app/.next/standalone ./

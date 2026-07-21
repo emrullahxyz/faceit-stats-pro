@@ -21,9 +21,14 @@ export async function GET(
 
         console.log(`[Scrape] Starting browser for ${nickname}...`);
 
-        // Launch headless browser
+        // Launch headless browser. In the Alpine container puppeteer's own
+        // bundled Chromium is musl-incompatible and isn't copied into the
+        // standalone runner, so point it at the system chromium package via
+        // PUPPETEER_EXECUTABLE_PATH; locally the env is unset and puppeteer
+        // falls back to its bundled browser.
         browser = await puppeteer.launch({
             headless: true,
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
